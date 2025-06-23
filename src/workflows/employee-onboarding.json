@@ -1,0 +1,173 @@
+{
+  "templateId": "employee-onboarding",
+  "name": "Employee Onboarding Process",
+  "version": "1.0.0",
+  "description": "Standard onboarding workflow for new employees",
+  "createdAt": "2024-01-01T00:00:00Z",
+  "goals": [
+    {
+      "goalId": "documentation-paperwork",
+      "name": "Documentation & Paperwork",
+      "description": "Complete all required employment documentation",
+      "icon": "📄",
+      "owner": "HR",
+      "estimatedDuration": "1 hour",
+      "status": "COMPLETED",
+      "subtasks": [
+        {
+          "subtaskId": "i9-form",
+          "name": "Complete I-9 Form",
+          "description": "Employment eligibility verification",
+          "required": true,
+          "estimatedDuration": "15 minutes",
+          "status": "COMPLETED"
+        },
+        {
+          "subtaskId": "w4-form",
+          "name": "Complete W-4 Form",
+          "description": "Federal tax withholding information",
+          "required": true,
+          "estimatedDuration": "10 minutes",
+          "status": "COMPLETED"
+        },
+        {
+          "subtaskId": "emergency-contacts",
+          "name": "Emergency Contact Information",
+          "description": "Provide emergency contact details",
+          "required": true,
+          "estimatedDuration": "5 minutes",
+          "status": "COMPLETED"
+        },
+        {
+          "subtaskId": "direct-deposit",
+          "name": "Direct Deposit Setup",
+          "description": "Banking information for payroll",
+          "required": false,
+          "estimatedDuration": "10 minutes",
+          "status": "COMPLETED"
+        }
+      ]
+    },
+    {
+      "goalId": "background-verification",
+      "name": "Background Verification",
+      "description": "Complete security and reference checks",
+      "icon": "🔍",
+      "owner": "Security",
+      "estimatedDuration": "2-3 business days",
+      "status": "IN_PROGRESS",
+      "subtasks": [
+        {
+          "subtaskId": "reference-check",
+          "name": "Reference Verification",
+          "description": "Contact previous employers and references",
+          "required": true,
+          "estimatedDuration": "1 business day",
+          "status": "COMPLETED"
+        },
+        {
+          "subtaskId": "employment-history",
+          "name": "Employment History Verification",
+          "description": "Verify previous employment records",
+          "required": true,
+          "estimatedDuration": "1-2 business days",
+          "status": "IN_PROGRESS"
+        },
+        {
+          "subtaskId": "criminal-background",
+          "name": "Criminal Background Check",
+          "description": "Standard background screening",
+          "required": true,
+          "estimatedDuration": "1 business day",
+          "status": "PENDING"
+        }
+      ]
+    },
+    {
+      "goalId": "equipment-access",
+      "name": "Equipment & Access Setup",
+      "description": "Provision technology and system access",
+      "icon": "💻",
+      "owner": "IT",
+      "estimatedDuration": "2 hours",
+      "status": "PENDING",
+      "subtasks": [
+        {
+          "subtaskId": "laptop-setup",
+          "name": "Laptop Configuration",
+          "description": "Set up company laptop with required software",
+          "required": true,
+          "estimatedDuration": "1 hour",
+          "status": "PENDING"
+        },
+        {
+          "subtaskId": "account-creation",
+          "name": "Create System Accounts",
+          "description": "Email, Slack, project management tools",
+          "required": true,
+          "estimatedDuration": "30 minutes",
+          "status": "PENDING"
+        },
+        {
+          "subtaskId": "security-badge",
+          "name": "Security Badge & Building Access",
+          "description": "Physical access to office facilities",
+          "required": true,
+          "estimatedDuration": "15 minutes",
+          "status": "PENDING"
+        },
+        {
+          "subtaskId": "software-licenses",
+          "name": "Software License Assignment",
+          "description": "Assign licenses for productivity tools",
+          "required": false,
+          "estimatedDuration": "15 minutes",
+          "status": "PENDING"
+        }
+      ]
+    },
+    {
+      "goalId": "orientation-training",
+      "name": "Orientation & Training",
+      "description": "Schedule and complete initial training",
+      "icon": "📅",
+      "owner": "HR",
+      "estimatedDuration": "4 hours",
+      "status": "PENDING",
+      "subtasks": [
+        {
+          "subtaskId": "schedule-orientation",
+          "name": "Schedule Orientation Session",
+          "description": "Book first-day orientation meeting",
+          "required": true,
+          "estimatedDuration": "15 minutes",
+          "status": "PENDING"
+        },
+        {
+          "subtaskId": "assign-buddy",
+          "name": "Assign Onboarding Buddy",
+          "description": "Pair with experienced team member",
+          "required": true,
+          "estimatedDuration": "10 minutes",
+          "status": "PENDING"
+        },
+        {
+          "subtaskId": "first-day-meeting",
+          "name": "First Day Team Meeting",
+          "description": "Introduction to immediate team and role",
+          "required": true,
+          "estimatedDuration": "1 hour",
+          "status": "PENDING"
+        },
+        {
+          "subtaskId": "security-training",
+          "name": "Security & Compliance Training",
+          "description": "Company security policies and procedures",
+          "required": true,
+          "estimatedDuration": "2 hours",
+          "status": "PENDING"
+        }
+      ]
+    }
+  ]
+}

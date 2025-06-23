@@ -1,0 +1,943 @@
+{
+  "workflow": {
+    "id": "wf_shift_fill_maximize_v1",
+    "name": "Maximize Shift Fill Rate",
+    "version": "1.0.0",
+    "objective": "Automatically optimize shift group fill rates through intelligent categorization, targeted interventions, and continuous improvement",
+    "metadata": {
+      "author": "workflow_design_team",
+      "created_at": "2025-02-01T10:00:00Z",
+      "last_modified": "2025-02-15T14:30:00Z",
+      "tags": ["shift_filling", "automation", "ai_powered"],
+      "integration": "instawork_platform"
+    },
+    "triggers": [
+      {
+        "type": "webhook",
+        "event": "shift_group.created",
+        "conditions": {
+          "shift_start_time": {
+            "operator": "greater_than",
+            "value": "now + 4 hours"
+          }
+        }
+      }
+    ],
+    "context_requirements": {
+      "shift_group_data": {
+        "required_fields": [
+          "id",
+          "role",
+          "count",
+          "location",
+          "start_time",
+          "end_time",
+          "company_id",
+          "pay_rate"
+        ],
+        "optional_fields": [
+          "certifications_required",
+          "special_requirements",
+          "historical_fill_rate"
+        ]
+      },
+      "worker_pool_data": {
+        "required_fields": [
+          "qualified_workers_count",
+          "average_response_rate",
+          "location_radius"
+        ]
+      }
+    },
+    "goals": [
+      {
+        "id": "goal_categorize",
+        "name": "Categorize Shift Group",
+        "description": "Analyze incoming shift group to determine appropriate intervention level and collect relevant information for downstream processing",
+        "order": 1,
+        "timeout_minutes": 30,
+        "success_criteria": {
+          "outputs_required": [
+            "categorization_result",
+            "confidence_score",
+            "analysis_summary"
+          ]
+        },
+        "constraints": [
+          {
+            "id": "const_time_limit",
+            "description": "You must not spend more than 30 minutes on initial categorization",
+            "type": "time_limit",
+            "value": 30,
+            "unit": "minutes",
+            "enforcement": "hard_stop"
+          },
+          {
+            "id": "const_data_completeness",
+            "description": "You must not proceed if shift data is incomplete (missing location, time, or role)",
+            "type": "data_validation",
+            "required_fields": ["location", "start_time", "end_time", "role"],
+            "enforcement": "block_progression"
+          },
+          {
+            "id": "const_min_lead_time",
+            "description": "You must not categorize groups starting in less than 4 hours",
+            "type": "business_rule",
+            "condition": "shift_start_time > now + 4h",
+            "enforcement": "skip_workflow"
+          }
+        ],
+        "policies": [
+          {
+            "id": "pol_urgent_shift",
+            "name": "Urgent Shift Handler",
+            "if": {
+              "condition": "shift_start_time < now + 4h",
+              "type": "time_comparison"
+            },
+            "then": {
+              "action": "set_categorization",
+              "params": {
+                "category": "no_intervention",
+                "reason": "too_late",
+                "notify": ["shift_operations_team"]
+              }
+            }
+          },
+          {
+            "id": "pol_high_fill_location",
+            "name": "High Success Location",
+            "if": {
+              "all_of": [
+                {
+                  "field": "location.historical_fill_rate",
+                  "operator": ">",
+                  "value": 0.8
+                },
+                {
+                  "field": "location.qualified_workers_count",
+                  "operator": ">",
+                  "value": 50
+                }
+              ]
+            },
+            "then": {
+              "action": "set_categorization",
+              "params": {
+                "category": "no_intervention_needed",
+                "confidence": 0.9
+              }
+            }
+          },
+          {
+            "id": "pol_cert_shortage",
+            "name": "Certification Shortage",
+            "if": {
+              "all_of": [
+                {
+                  "field": "shift.requires_certification",
+                  "operator": "==",
+                  "value": true
+                },
+                {
+                  "field": "qualified_workers_within_50mi",
+                  "operator": "<",
+                  "value": 10
+                }
+              ]
+            },
+            "then": {
+              "action": "set_categorization",
+              "params": {
+                "category": "manual_intervention_required",
+                "reason": "insufficient_certified_workers",
+                "escalate_to": "account_management"
+              }
+            }
+          },
+          {
+            "id": "pol_low_confidence",
+            "name": "Low Confidence Escalation",
+            "if": {
+              "field": "analysis.confidence_score",
+              "operator": "<",
+              "value": 0.7
+            },
+            "then": {
+              "action": "create_task",
+              "params": {
+                "task_type": "human_review",
+                "priority": "high"
+              }
+            }
+          }
+        ],
+        "tasks": [
+          {
+            "id": "task_analyze_shift",
+            "description": "Analyze shift group and collect all relevant data",
+            "assignee": {
+              "type": "ai_agent",
+              "model": "shift_analyzer_v2",
+              "capabilities": [
+                "data_enrichment",
+                "pattern_matching",
+                "location_analysis"
+              ]
+            },
+            "inputs": [
+              "shift_group_data",
+              "historical_data",
+              "worker_pool_data"
+            ],
+            "outputs": [
+              "enriched_shift_data",
+              "market_analysis",
+              "fill_probability"
+            ],
+            "timeout_minutes": 10,
+            "retry_policy": {
+              "max_attempts": 2,
+              "backoff": "exponential"
+            }
+          },
+          {
+            "id": "task_categorize",
+            "description": "Categorize shift group into one of three intervention categories",
+            "assignee": {
+              "type": "ai_agent",
+              "model": "categorizer_v1"
+            },
+            "inputs": ["enriched_shift_data", "market_analysis"],
+            "outputs": [
+              "categorization_result",
+              "confidence_score",
+              "reasoning"
+            ],
+            "timeout_minutes": 5,
+            "depends_on": ["task_analyze_shift"]
+          },
+          {
+            "id": "task_human_review",
+            "description": "Review categorization if confidence <70%",
+            "assignee": {
+              "type": "human",
+              "role": "shift_operations",
+              "skills": ["shift_analysis", "market_knowledge"]
+            },
+            "trigger_condition": "confidence_score < 0.7",
+            "ui_component": "categorization_review_panel",
+            "sla_minutes": 15,
+            "escalation": {
+              "after_minutes": 20,
+              "to": "shift_operations_manager"
+            }
+          }
+        ],
+        "forms": [
+          {
+            "id": "form_shift_analysis",
+            "name": "Shift Analysis Summary",
+            "description": "Collects all data points and outputs categorization decision",
+            "type": "ai_generated",
+            "schema": {
+              "sections": [
+                {
+                  "id": "basic_info",
+                  "fields": [
+                    {
+                      "name": "shift_group_id",
+                      "type": "string",
+                      "source": "context.shift_group.id"
+                    },
+                    {
+                      "name": "categorization",
+                      "type": "select",
+                      "options": [
+                        "no_intervention",
+                        "automated_intervention",
+                        "manual_intervention"
+                      ],
+                      "required": true
+                    },
+                    {
+                      "name": "confidence_score",
+                      "type": "number",
+                      "min": 0,
+                      "max": 1,
+                      "required": true
+                    }
+                  ]
+                },
+                {
+                  "id": "analysis_details",
+                  "fields": [
+                    {
+                      "name": "worker_availability",
+                      "type": "object",
+                      "schema": {
+                        "total_qualified": "number",
+                        "likely_available": "number",
+                        "historical_response_rate": "number"
+                      }
+                    },
+                    {
+                      "name": "risk_factors",
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "low_lead_time",
+                          "high_competition",
+                          "poor_location",
+                          "special_requirements"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "goal_execute_interventions",
+        "name": "Execute Fill Actions",
+        "description": "Deploy targeted interventions to maximize probability of filling all shifts in the group",
+        "order": 2,
+        "activation_condition": "goal_categorize.output.categorization == 'automated_intervention'",
+        "timeout_minutes": null,
+        "continuous": true,
+        "stop_condition": "shift_start_time - 2h || fill_rate == 1.0",
+        "constraints": [
+          {
+            "id": "const_contact_limit",
+            "description": "You must not contact any worker more than once per shift group",
+            "type": "rate_limit",
+            "scope": "worker_id + shift_group_id",
+            "limit": 1,
+            "enforcement": "block_duplicate"
+          },
+          {
+            "id": "const_bonus_cap",
+            "description": "You must not offer bonuses exceeding 25% of base pay",
+            "type": "business_rule",
+            "max_value": "base_pay * 1.25",
+            "enforcement": "require_approval"
+          },
+          {
+            "id": "const_contact_hours",
+            "description": "You must not send messages outside workers' preferred hours",
+            "type": "time_window",
+            "check": "worker.preferences.contact_hours",
+            "enforcement": "delay_until_allowed"
+          },
+          {
+            "id": "const_worker_qualification",
+            "description": "You must not share shift details with non-qualified workers",
+            "type": "access_control",
+            "rule": "worker.qualifications includes shift.requirements",
+            "enforcement": "filter_recipients"
+          },
+          {
+            "id": "const_promise_approval",
+            "description": "You must not promise anything not explicitly approved by the company",
+            "type": "content_validation",
+            "allowed_promises": [
+              "standard_pay",
+              "approved_bonuses",
+              "standard_benefits"
+            ],
+            "enforcement": "content_review"
+          }
+        ],
+        "policies": [
+          {
+            "id": "pol_48hr_bonus",
+            "name": "48 Hour Bonus Activation",
+            "if": {
+              "all_of": [
+                {
+                  "field": "current_fill_rate",
+                  "operator": "<",
+                  "value": 0.5
+                },
+                {
+                  "field": "hours_until_shift",
+                  "operator": "<=",
+                  "value": 48
+                }
+              ]
+            },
+            "then": {
+              "action": "activate_bonus",
+              "params": {
+                "bonus_percentage": 10,
+                "auto_approve": true,
+                "notification": "bonus_activated_template"
+              }
+            }
+          },
+          {
+            "id": "pol_24hr_bonus",
+            "name": "24 Hour Bonus Escalation",
+            "if": {
+              "all_of": [
+                {
+                  "field": "current_fill_rate",
+                  "operator": "<",
+                  "value": 0.3
+                },
+                {
+                  "field": "hours_until_shift",
+                  "operator": "<=",
+                  "value": 24
+                }
+              ]
+            },
+            "then": {
+              "action": "activate_bonus",
+              "params": {
+                "bonus_percentage": 20,
+                "auto_approve": true,
+                "urgent": true
+              }
+            }
+          },
+          {
+            "id": "pol_recruitment_trigger",
+            "name": "External Recruitment",
+            "if": {
+              "field": "qualified_to_needed_ratio",
+              "operator": "<",
+              "value": 2
+            },
+            "then": {
+              "action": "initiate_recruitment",
+              "params": {
+                "channels": ["indeed", "craigslist", "facebook"],
+                "budget": "auto_calculate"
+              }
+            }
+          },
+          {
+            "id": "pol_common_decline_reason",
+            "name": "Common Issue Escalation",
+            "if": {
+              "field": "decline_reasons.same_reason_count",
+              "operator": ">=",
+              "value": 3
+            },
+            "then": {
+              "action": "create_task",
+              "params": {
+                "type": "contact_company",
+                "reason": "{{common_decline_reason}}",
+                "priority": "high"
+              }
+            }
+          },
+          {
+            "id": "pol_inactive_worker_skip",
+            "name": "Skip Inactive Workers",
+            "if": {
+              "field": "worker.last_app_open",
+              "operator": ">",
+              "value": "30 days"
+            },
+            "then": {
+              "action": "exclude_from_outreach",
+              "params": {
+                "reason": "inactive_user"
+              }
+            }
+          }
+        ],
+        "tasks": [
+          {
+            "id": "task_outreach_campaign",
+            "description": "Create and execute worker outreach campaign",
+            "assignee": {
+              "type": "ai_agent",
+              "model": "outreach_optimizer_v3",
+              "capabilities": [
+                "personalization",
+                "a_b_testing",
+                "send_timing_optimization"
+              ]
+            },
+            "config": {
+              "personalization_level": "high",
+              "channels": ["push_notification", "sms", "in_app"],
+              "message_variants": 3,
+              "optimization_metric": "acceptance_rate"
+            },
+            "continuous": true,
+            "batch_size": 50,
+            "batch_delay_minutes": 10
+          },
+          {
+            "id": "task_monitor_progress",
+            "description": "Monitor fill progress and adjust strategy",
+            "assignee": {
+              "type": "ai_agent",
+              "model": "progress_monitor_v1"
+            },
+            "schedule": "every_30_minutes",
+            "actions": [
+              "update_fill_metrics",
+              "adjust_outreach_strategy",
+              "trigger_escalations"
+            ]
+          },
+          {
+            "id": "task_bonus_activation",
+            "description": "Activate bonus incentives if needed",
+            "assignee": {
+              "type": "ai_agent",
+              "model": "incentive_manager_v1",
+              "permissions": ["read_financials", "propose_bonuses"]
+            },
+            "approval_required": false,
+            "audit_log": true
+          },
+          {
+            "id": "task_recruitment_ads",
+            "description": "Create and place recruitment ads if needed",
+            "assignee": {
+              "type": "ai_agent",
+              "model": "ad_creator_v2"
+            },
+            "human_review": {
+              "required": true,
+              "reviewer_role": "marketing_team",
+              "sla_minutes": 60
+            },
+            "budget_source": "shift_group.recruitment_budget"
+          },
+          {
+            "id": "task_company_contact",
+            "description": "Contact company for shift modifications if needed",
+            "assignee": {
+              "type": "human",
+              "role": "account_manager",
+              "routing": "company.assigned_am || shift_operations"
+            },
+            "template": "shift_modification_request",
+            "tracking": "crm_integration"
+          },
+          {
+            "id": "task_approve_exceptional_bonus",
+            "description": "Approve exceptional bonus amounts >20%",
+            "assignee": {
+              "type": "human",
+              "role": "operations_manager"
+            },
+            "trigger": "proposed_bonus > base_pay * 1.2",
+            "decision_factors": [
+              "shift_importance",
+              "client_tier",
+              "fill_urgency"
+            ],
+            "sla_minutes": 30
+          }
+        ],
+        "forms": [
+          {
+            "id": "form_message_builder",
+            "name": "Message Template Builder",
+            "type": "conversational",
+            "agent": "message_crafting_agent",
+            "initial_prompt": "I'll help you create personalized outreach messages for this shift group. What key points should we emphasize?",
+            "context_provided": [
+              "shift_details",
+              "worker_preferences",
+              "historical_response_data"
+            ],
+            "output_format": {
+              "message_templates": "array",
+              "personalization_tokens": "array",
+              "send_schedule": "object"
+            }
+          },
+          {
+            "id": "form_recruitment_ad",
+            "name": "Recruitment Ad Creator",
+            "type": "structured",
+            "fields": [
+              {
+                "name": "headline",
+                "type": "text",
+                "ai_generated": true,
+                "max_length": 100
+              },
+              {
+                "name": "job_description",
+                "type": "textarea",
+                "ai_generated": true,
+                "template": "recruitment_ad_template"
+              },
+              {
+                "name": "target_platforms",
+                "type": "multi_select",
+                "options": ["indeed", "craigslist", "facebook", "linkedin"]
+              },
+              {
+                "name": "budget_allocation",
+                "type": "budget_split",
+                "total": "{{available_budget}}"
+              }
+            ]
+          },
+          {
+            "id": "form_company_modification",
+            "name": "Company Communication Request",
+            "type": "structured",
+            "pre_filled": true,
+            "sections": [
+              {
+                "name": "issue_summary",
+                "fields": [
+                  {
+                    "name": "primary_issue",
+                    "type": "select",
+                    "options": [
+                      "pay_rate",
+                      "requirements",
+                      "location",
+                      "timing",
+                      "other"
+                    ]
+                  },
+                  {
+                    "name": "worker_feedback",
+                    "type": "array",
+                    "source": "decline_reasons"
+                  }
+                ]
+              },
+              {
+                "name": "proposed_solutions",
+                "fields": [
+                  {
+                    "name": "recommendations",
+                    "type": "array",
+                    "ai_suggested": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "goal_analyze_improve",
+        "name": "Analyze & Improve",
+        "description": "Post-shift analysis to identify patterns, anomalies, and improvement opportunities across all workflow components",
+        "order": 3,
+        "trigger": "shift_end_time + 2h",
+        "timeout_minutes": 120,
+        "constraints": [
+          {
+            "id": "const_timing",
+            "description": "You must not begin analysis until shift has completed",
+            "type": "timing",
+            "condition": "current_time > shift.end_time",
+            "enforcement": "block_until_met"
+          },
+          {
+            "id": "const_change_approval",
+            "description": "You must not automatically implement workflow changes without human approval",
+            "type": "change_management",
+            "approval_required": true,
+            "approver": "workflow_admin"
+          },
+          {
+            "id": "const_data_integrity",
+            "description": "You must not delete or modify historical intervention data",
+            "type": "data_protection",
+            "operations": ["read_only"],
+            "audit": true
+          },
+          {
+            "id": "const_privacy",
+            "description": "You must not share individual worker data in reports",
+            "type": "privacy",
+            "anonymization": "aggregate_only",
+            "min_group_size": 5
+          }
+        ],
+        "policies": [
+          {
+            "id": "pol_prediction_miss",
+            "name": "Prediction Accuracy Check",
+            "if": {
+              "field": "abs(actual_fill_rate - predicted_fill_rate)",
+              "operator": ">",
+              "value": 0.3
+            },
+            "then": {
+              "action": "trigger_deep_dive",
+              "params": {
+                "analysis_type": "prediction_failure",
+                "include": [
+                  "market_conditions",
+                  "competitor_activity",
+                  "model_performance"
+                ]
+              }
+            }
+          },
+          {
+            "id": "pol_successful_intervention",
+            "name": "Success Pattern Detection",
+            "if": {
+              "field": "intervention_lift",
+              "operator": ">",
+              "value": 0.2
+            },
+            "then": {
+              "action": "flag_for_adoption",
+              "params": {
+                "create_case_study": true,
+                "propose_standard_practice": true
+              }
+            }
+          },
+          {
+            "id": "pol_anomaly_detection",
+            "name": "Fraud and Anomaly Check",
+            "if": {
+              "any_of": [
+                {
+                  "field": "mass_cancellation_rate",
+                  "operator": ">",
+                  "value": 0.3
+                },
+                {
+                  "field": "unusual_pattern_score",
+                  "operator": ">",
+                  "value": 0.8
+                }
+              ]
+            },
+            "then": {
+              "action": "escalate_to_team",
+              "params": {
+                "team": "fraud_prevention",
+                "priority": "high",
+                "freeze_payments": true
+              }
+            }
+          },
+          {
+            "id": "pol_negative_feedback",
+            "name": "Company Satisfaction Check",
+            "if": {
+              "field": "company_feedback.sentiment",
+              "operator": "==",
+              "value": "negative"
+            },
+            "then": {
+              "action": "flag_for_review",
+              "params": {
+                "reviewer": "account_management",
+                "include_transcript": true
+              }
+            }
+          }
+        ],
+        "tasks": [
+          {
+            "id": "task_outcome_analysis",
+            "description": "Analyze shift outcomes and intervention effectiveness",
+            "assignee": {
+              "type": "ai_agent",
+              "model": "analytics_engine_v4",
+              "capabilities": [
+                "statistical_analysis",
+                "causal_inference",
+                "pattern_recognition"
+              ]
+            },
+            "analyses": [
+              "fill_rate_analysis",
+              "intervention_effectiveness",
+              "cost_benefit_analysis",
+              "worker_behavior_patterns",
+              "timing_optimization"
+            ],
+            "output": {
+              "format": "structured_report",
+              "sections": [
+                "executive_summary",
+                "detailed_findings",
+                "recommendations"
+              ]
+            }
+          },
+          {
+            "id": "task_pattern_identification",
+            "description": "Identify patterns and generate improvement recommendations",
+            "assignee": {
+              "type": "ai_agent",
+              "model": "pattern_detector_v2"
+            },
+            "focus_areas": [
+              "successful_interventions",
+              "failure_patterns",
+              "cost_optimization",
+              "worker_engagement",
+              "process_bottlenecks"
+            ],
+            "deliverables": [
+              "pattern_report",
+              "improvement_proposals",
+              "a_b_test_suggestions"
+            ]
+          },
+          {
+            "id": "task_anomaly_review",
+            "description": "Review anomalies and potential fraud indicators",
+            "assignee": {
+              "type": "human",
+              "role": "fraud_analyst",
+              "escalation": "security_team"
+            },
+            "trigger": "anomaly_score > threshold",
+            "tools": ["fraud_dashboard", "worker_history", "payment_analysis"],
+            "sla_hours": 24
+          },
+          {
+            "id": "task_approve_improvements",
+            "description": "Approve proposed workflow improvements",
+            "assignee": {
+              "type": "human",
+              "role": "workflow_admin"
+            },
+            "review_materials": [
+              "improvement_proposal",
+              "impact_analysis",
+              "risk_assessment"
+            ],
+            "decision_options": ["approve", "modify", "reject", "pilot_test"]
+          }
+        ],
+        "forms": [
+          {
+            "id": "form_analysis_report",
+            "name": "Post-Shift Analysis Report",
+            "type": "automated",
+            "generation": "on_completion",
+            "template": "comprehensive_analysis_template",
+            "data_sources": [
+              "shift_metrics",
+              "intervention_log",
+              "worker_responses",
+              "financial_data"
+            ],
+            "distribution": ["ops_team", "account_management", "data_science"]
+          },
+          {
+            "id": "form_improvement_proposal",
+            "name": "Improvement Proposal",
+            "type": "conversational",
+            "agent": "improvement_discussion_agent",
+            "mode": "collaborative",
+            "participants": ["ai_agent", "human_reviewer"],
+            "discussion_points": [
+              "identified_patterns",
+              "proposed_changes",
+              "expected_impact",
+              "implementation_plan"
+            ]
+          },
+          {
+            "id": "form_anomaly_investigation",
+            "name": "Anomaly Investigation",
+            "type": "structured",
+            "sections": [
+              {
+                "name": "anomaly_details",
+                "fields": [
+                  {
+                    "name": "type",
+                    "type": "select",
+                    "options": [
+                      "mass_cancellation",
+                      "payment_irregularity",
+                      "behavior_pattern",
+                      "other"
+                    ]
+                  },
+                  {
+                    "name": "severity",
+                    "type": "scale",
+                    "min": 1,
+                    "max": 10
+                  },
+                  {
+                    "name": "affected_workers",
+                    "type": "number"
+                  }
+                ]
+              },
+              {
+                "name": "investigation_findings",
+                "fields": [
+                  {
+                    "name": "root_cause",
+                    "type": "textarea"
+                  },
+                  {
+                    "name": "recommended_action",
+                    "type": "select",
+                    "options": [
+                      "no_action",
+                      "warning",
+                      "suspension",
+                      "escalate_legal"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "global_settings": {
+      "max_execution_time_hours": 168,
+      "data_retention_days": 90,
+      "default_timezone": "America/Los_Angeles",
+      "notification_channels": {
+        "urgent": ["slack", "pagerduty"],
+        "normal": ["email", "slack"],
+        "reports": ["email"]
+      },
+      "integrations": {
+        "instawork_api": {
+          "version": "v2",
+          "rate_limit": 1000,
+          "auth": "oauth2"
+        },
+        "communication_platforms": {
+          "twilio": {
+            "enabled": true,
+            "sender_id": "INSTAWORK"
+          },
+          "sendgrid": {
+            "enabled": true,
+            "template_set": "shift_filling"
+          }
+        },
+        "analytics": {
+          "mixpanel": true,
+          "bigquery": true,
+          "custom_events": true
+        }
+      }
+    }
+  }
+}

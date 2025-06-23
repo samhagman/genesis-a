@@ -1,5 +1,5 @@
 /**
- * Tool definitions for the AI chat agent
+ * Tool definitions for the AI assistant
  * Tools can either require human confirmation or execute automatically
  */
 import { tool } from "ai";

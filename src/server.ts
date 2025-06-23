@@ -23,7 +23,7 @@ const model = openai("gpt-4o-2024-11-20");
 // });
 
 /**
- * Chat Agent implementation that handles real-time AI chat interactions
+ * AI Chat implementation that handles real-time AI interactions
  */
 export class Chat extends AIChatAgent<Env> {
   /**

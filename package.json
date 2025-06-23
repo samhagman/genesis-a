@@ -1,7 +1,7 @@
 {
-  "name": "cloudflare-agent-starter",
+  "name": "genesis-workflow-app",
   "version": "1.0.0",
-  "description": "",
+  "description": "A modern workflow visualization platform built on Cloudflare Workers",
   "type": "module",
   "private": true,
   "scripts": {
@@ -14,8 +14,8 @@
   },
   "keywords": [
     "cloudflare",
-    "ai",
-    "agents"
+    "workflow",
+    "visualization"
   ],
   "author": "",
   "license": "MIT",
@@ -25,10 +25,14 @@
     "@cloudflare/vitest-pool-workers": "^0.8.27",
     "@cloudflare/workers-types": "^4.20250513.0",
     "@tailwindcss/vite": "^4.1.6",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.15.32",
     "@types/react": "^19.1.4",
     "@types/react-dom": "^19.1.5",
     "@vitejs/plugin-react": "^4.4.1",
+    "jsdom": "^26.1.0",
     "prettier": "^3.5.3",
     "tailwindcss": "^4.1.6",
     "typescript": "^5.8.3",
