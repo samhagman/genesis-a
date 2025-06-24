@@ -5,10 +5,14 @@ import { ThreePanelLayout } from "@/components/layout/ThreePanelLayout";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { WorkflowPanel } from "@/components/workflow/WorkflowPanel";
 import { InspectorPanel } from "@/components/inspector/InspectorPanel";
+import { ScenarioSwitcher } from "@/components/development/ScenarioSwitcher";
 
 // Types and utilities
-import type { WorkflowTemplate } from "@/types/workflow";
+import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
 import { loadWorkflowTemplate } from "@/workflows";
+import { getAllScenarios } from "@/state/mockScenarios";
+import { useWorkflowStore } from "@/state/workflowStore";
+import { useWorkflowActions } from "@/state/hooks";
 
 export default function App() {
   const [theme, setTheme] = useState<"dark" | "light">(() => {
@@ -20,13 +24,16 @@ export default function App() {
   // Workflow selection state
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [selectedItemType, setSelectedItemType] = useState<
-    "goal" | "subtask" | null
+    "goal" | "constraint" | "policy" | "task" | "form" | null
   >(null);
 
   // Workflow data state
-  const [workflow, setWorkflow] = useState<WorkflowTemplate | null>(null);
+  const [workflow, setWorkflow] = useState<WorkflowTemplateV2 | null>(null);
   const [workflowLoading, setWorkflowLoading] = useState(true);
   const [workflowError, setWorkflowError] = useState<string | null>(null);
+
+  // Workflow instance state management
+  const workflowActions = useWorkflowActions();
 
   useEffect(() => {
     // Apply theme class on mount and when theme changes
@@ -47,8 +54,22 @@ export default function App() {
     async function loadWorkflow() {
       try {
         setWorkflowLoading(true);
-        const workflowData = await loadWorkflowTemplate("employee-onboarding");
+        // Load InstaWork workflow (V2 schema)
+        const workflowData = await loadWorkflowTemplate(
+          "instawork-shift-filling"
+        );
         setWorkflow(workflowData);
+
+        // Initialize workflow scenarios and load default scenario
+        const scenarios = getAllScenarios(workflowData);
+        useWorkflowStore.getState().setScenarios(scenarios);
+
+        // Load the "in_progress" scenario by default for demonstration
+        const defaultScenario =
+          scenarios.find((s) => s.name === "in_progress") || scenarios[0];
+        if (defaultScenario) {
+          workflowActions.loadScenario(defaultScenario);
+        }
       } catch (err) {
         setWorkflowError(
           err instanceof Error ? err.message : "Failed to load workflow"
@@ -59,21 +80,32 @@ export default function App() {
     }
 
     loadWorkflow();
-  }, []);
+  }, [workflowActions]);
 
   const toggleTheme = () => {
     const newTheme = theme === "dark" ? "light" : "dark";
     setTheme(newTheme);
   };
 
-  const handleItemSelect = (type: "goal" | "subtask", id: string) => {
+  const handleItemSelect = (
+    type: "goal" | "constraint" | "policy" | "task" | "form",
+    id: string,
+    parentGoalId?: string
+  ) => {
     setSelectedItemType(type);
     setSelectedItemId(id);
+    // Note: parentGoalId can be used in future for enhanced inspector context
   };
 
   return (
     <div className="h-screen w-full bg-white dark:bg-neutral-950 overflow-hidden">
       <HasOpenAIKey />
+
+      {/* Development Scenario Switcher */}
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
+        <ScenarioSwitcher />
+      </div>
+
       <ThreePanelLayout
         leftPanel={<ChatPanel theme={theme} onThemeToggle={toggleTheme} />}
         centerPanel={

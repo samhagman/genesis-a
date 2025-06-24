@@ -3,30 +3,29 @@ import { describe, it, expect } from "vitest";
 import { ThreePanelLayout } from "@/components/layout/ThreePanelLayout";
 import { WorkflowPanel } from "@/components/workflow/WorkflowPanel";
 import { InspectorPanel } from "@/components/inspector/InspectorPanel";
-import type { WorkflowTemplate } from "@/types/workflow";
+import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
 
-const mockWorkflow: WorkflowTemplate = {
-  templateId: "test-workflow",
+const mockWorkflow: WorkflowTemplateV2 = {
+  id: "test-workflow",
   name: "Test Workflow",
-  description: "A test workflow",
   version: "1.0",
+  objective: "A test workflow",
+  metadata: {
+    author: "test",
+    created_at: "2024-01-01T00:00:00Z",
+    last_modified: "2024-01-01T00:00:00Z",
+    tags: ["test"],
+  },
   goals: [
     {
-      goalId: "goal-1",
+      id: "goal-1",
       name: "Test Goal",
       description: "A test goal",
-      icon: "🎯",
-      owner: "Test Owner",
-      estimatedDuration: "1 hour",
-      subtasks: [
-        {
-          subtaskId: "subtask-1",
-          name: "Test Subtask",
-          description: "A test subtask",
-          estimatedDuration: "30 minutes",
-          required: true,
-        },
-      ],
+      order: 1,
+      constraints: [],
+      policies: [],
+      tasks: [],
+      forms: [],
     },
   ],
 };
