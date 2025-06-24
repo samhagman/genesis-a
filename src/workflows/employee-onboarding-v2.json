@@ -1,0 +1,707 @@
+{
+  "id": "employee-onboarding-v2",
+  "name": "Employee Onboarding Process V2",
+  "version": "2.0",
+  "objective": "Ensure comprehensive onboarding of new employees through structured documentation, verification, setup, and training processes",
+  "metadata": {
+    "author": "hr_team",
+    "created_at": "2024-01-01T00:00:00Z",
+    "last_modified": "2025-01-15T14:30:00Z",
+    "tags": ["onboarding", "hr", "compliance"],
+    "integration": "hr_management_system"
+  },
+  "triggers": [
+    {
+      "type": "manual",
+      "event": "new_hire.approved",
+      "conditions": {
+        "start_date": {
+          "operator": "greater_than",
+          "value": "now + 1 day"
+        }
+      }
+    }
+  ],
+  "context_requirements": {
+    "employee_data": {
+      "required_fields": [
+        "employee_id",
+        "full_name",
+        "position",
+        "department",
+        "start_date",
+        "manager_id"
+      ],
+      "optional_fields": [
+        "previous_employer",
+        "security_clearance_required",
+        "remote_work_arrangement"
+      ]
+    }
+  },
+  "goals": [
+    {
+      "id": "goal_documentation_paperwork",
+      "name": "Documentation & Paperwork",
+      "description": "Complete all required employment documentation and legal compliance forms",
+      "order": 1,
+      "timeout_minutes": 120,
+      "success_criteria": {
+        "outputs_required": [
+          "i9_verification_complete",
+          "tax_forms_complete",
+          "emergency_contacts_collected"
+        ]
+      },
+      "constraints": [
+        {
+          "id": "const_legal_deadline",
+          "description": "You must not allow employee to start work without completed I-9 form",
+          "type": "business_rule",
+          "condition": "i9_form_status == 'COMPLETED'",
+          "enforcement": "block_progression"
+        },
+        {
+          "id": "const_documentation_time",
+          "description": "You must not spend more than 2 hours on documentation completion",
+          "type": "time_limit",
+          "value": 120,
+          "unit": "minutes",
+          "enforcement": "warn"
+        },
+        {
+          "id": "const_data_accuracy",
+          "description": "You must not proceed without verifying employee identity documents",
+          "type": "data_validation",
+          "required_fields": ["photo_id", "eligibility_documents"],
+          "enforcement": "require_approval"
+        }
+      ],
+      "policies": [
+        {
+          "id": "pol_remote_employee",
+          "name": "Remote Employee Documentation",
+          "if": {
+            "field": "employee.work_arrangement",
+            "operator": "==",
+            "value": "remote"
+          },
+          "then": {
+            "action": "create_task",
+            "params": {
+              "task_type": "remote_i9_verification",
+              "priority": "high",
+              "assign_to": "hr_specialist"
+            }
+          }
+        },
+        {
+          "id": "pol_expedited_start",
+          "name": "Expedited Start Date",
+          "if": {
+            "field": "days_until_start",
+            "operator": "<",
+            "value": 3
+          },
+          "then": {
+            "action": "escalate_to_team",
+            "params": {
+              "team": "hr_management",
+              "reason": "urgent_onboarding_required"
+            }
+          }
+        },
+        {
+          "id": "pol_incomplete_forms",
+          "name": "Incomplete Form Follow-up",
+          "if": {
+            "field": "form_completion_rate",
+            "operator": "<",
+            "value": 0.8
+          },
+          "then": {
+            "action": "create_task",
+            "params": {
+              "task_type": "follow_up_reminder",
+              "delay_hours": 24
+            }
+          }
+        }
+      ],
+      "tasks": [
+        {
+          "id": "task_i9_verification",
+          "description": "Guide employee through I-9 form completion and verify eligibility documents",
+          "assignee": {
+            "type": "human",
+            "role": "hr_specialist",
+            "skills": ["i9_verification", "document_review"]
+          },
+          "inputs": ["employee_data", "identity_documents"],
+          "outputs": ["i9_form_completed", "eligibility_verified"],
+          "timeout_minutes": 30,
+          "sla_minutes": 60
+        },
+        {
+          "id": "task_tax_forms",
+          "description": "Assist employee with W-4 and state tax form completion",
+          "assignee": {
+            "type": "human",
+            "role": "hr_coordinator"
+          },
+          "depends_on": ["task_i9_verification"],
+          "timeout_minutes": 20
+        },
+        {
+          "id": "task_emergency_contacts",
+          "description": "Collect and verify emergency contact information",
+          "assignee": {
+            "type": "human",
+            "role": "hr_coordinator"
+          },
+          "outputs": ["emergency_contacts_verified"],
+          "timeout_minutes": 15
+        },
+        {
+          "id": "task_direct_deposit",
+          "description": "Set up direct deposit and banking information",
+          "assignee": {
+            "type": "human",
+            "role": "payroll_specialist"
+          },
+          "approval_required": false,
+          "timeout_minutes": 20
+        }
+      ],
+      "forms": [
+        {
+          "id": "form_i9_employment_eligibility",
+          "name": "I-9 Employment Eligibility Verification",
+          "description": "Federal form for verifying identity and employment authorization",
+          "type": "structured",
+          "pre_filled": true,
+          "fields": [
+            {
+              "name": "employee_info",
+              "type": "object",
+              "required": true
+            },
+            {
+              "name": "document_verification",
+              "type": "object",
+              "required": true
+            },
+            {
+              "name": "employer_certification",
+              "type": "object",
+              "required": true
+            }
+          ]
+        },
+        {
+          "id": "form_tax_withholding",
+          "name": "Tax Withholding Forms",
+          "description": "Federal and state tax withholding elections",
+          "type": "structured",
+          "fields": [
+            {
+              "name": "w4_federal",
+              "type": "object",
+              "required": true
+            },
+            {
+              "name": "state_withholding",
+              "type": "object"
+            }
+          ]
+        },
+        {
+          "id": "form_emergency_contacts",
+          "name": "Emergency Contact Information",
+          "description": "Emergency contact details and medical information",
+          "type": "structured",
+          "fields": [
+            {
+              "name": "primary_contact",
+              "type": "object",
+              "required": true
+            },
+            {
+              "name": "secondary_contact",
+              "type": "object"
+            },
+            {
+              "name": "medical_conditions",
+              "type": "textarea"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "goal_background_verification",
+      "name": "Background Verification",
+      "description": "Complete security and reference checks according to company policy and legal requirements",
+      "order": 2,
+      "timeout_minutes": 4320,
+      "activation_condition": "goal_documentation_paperwork.status == 'COMPLETED'",
+      "constraints": [
+        {
+          "id": "const_reference_minimum",
+          "description": "You must not proceed without at least 2 professional references verified",
+          "type": "business_rule",
+          "condition": "verified_references >= 2",
+          "enforcement": "block_progression"
+        },
+        {
+          "id": "const_background_timing",
+          "description": "You must not delay background check beyond 3 business days",
+          "type": "time_limit",
+          "value": 3,
+          "unit": "business_days",
+          "enforcement": "warn"
+        },
+        {
+          "id": "const_privacy_compliance",
+          "description": "You must not share background check details with unauthorized personnel",
+          "type": "privacy",
+          "anonymization": "role_based_access",
+          "min_group_size": 1,
+          "enforcement": "warn"
+        }
+      ],
+      "policies": [
+        {
+          "id": "pol_security_clearance",
+          "name": "Security Clearance Required",
+          "if": {
+            "field": "position.security_clearance_required",
+            "operator": "==",
+            "value": true
+          },
+          "then": {
+            "action": "initiate_security_clearance",
+            "params": {
+              "clearance_level": "{{position.clearance_level}}",
+              "priority": "high"
+            }
+          }
+        },
+        {
+          "id": "pol_reference_failure",
+          "name": "Reference Check Issues",
+          "if": {
+            "field": "negative_reference_count",
+            "operator": ">=",
+            "value": 1
+          },
+          "then": {
+            "action": "escalate_to_team",
+            "params": {
+              "team": "hr_management",
+              "include_details": true
+            }
+          }
+        }
+      ],
+      "tasks": [
+        {
+          "id": "task_reference_verification",
+          "description": "Contact and verify professional references",
+          "assignee": {
+            "type": "human",
+            "role": "hr_specialist",
+            "skills": ["reference_checking", "interview_skills"]
+          },
+          "timeout_minutes": 180,
+          "outputs": ["reference_reports", "verification_status"]
+        },
+        {
+          "id": "task_employment_history",
+          "description": "Verify previous employment records and dates",
+          "assignee": {
+            "type": "ai_agent",
+            "model": "employment_verifier_v1",
+            "capabilities": ["data_verification", "record_matching"]
+          },
+          "human_review": {
+            "required": true,
+            "reviewer_role": "hr_specialist",
+            "sla_minutes": 120
+          },
+          "depends_on": ["task_reference_verification"]
+        },
+        {
+          "id": "task_criminal_background",
+          "description": "Conduct criminal background screening through approved vendor",
+          "assignee": {
+            "type": "human",
+            "role": "security_specialist"
+          },
+          "approval_required": true,
+          "audit_log": true,
+          "sla_hours": 48
+        }
+      ],
+      "forms": [
+        {
+          "id": "form_background_consent",
+          "name": "Background Check Authorization",
+          "description": "Employee consent for background verification",
+          "type": "structured",
+          "fields": [
+            {
+              "name": "consent_agreement",
+              "type": "select",
+              "options": ["agree", "decline"],
+              "required": true
+            },
+            {
+              "name": "disclosure_acknowledgment",
+              "type": "select",
+              "options": ["acknowledged"],
+              "required": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "goal_equipment_access",
+      "name": "Equipment & Access Setup",
+      "description": "Provision technology, system access, and physical security for new employee",
+      "order": 3,
+      "timeout_minutes": 240,
+      "activation_condition": "goal_background_verification.status == 'COMPLETED'",
+      "constraints": [
+        {
+          "id": "const_security_compliance",
+          "description": "You must not provide system access without security training completion",
+          "type": "business_rule",
+          "condition": "security_training_status == 'COMPLETED'",
+          "enforcement": "block_progression"
+        },
+        {
+          "id": "const_equipment_availability",
+          "description": "You must not delay equipment setup beyond employee start date",
+          "type": "time_limit",
+          "value": 0,
+          "unit": "days_before_start",
+          "enforcement": "hard_stop"
+        }
+      ],
+      "policies": [
+        {
+          "id": "pol_remote_equipment",
+          "name": "Remote Work Equipment",
+          "if": {
+            "field": "employee.work_arrangement",
+            "operator": "==",
+            "value": "remote"
+          },
+          "then": {
+            "action": "initiate_shipping",
+            "params": {
+              "shipping_method": "expedited",
+              "include_peripherals": true
+            }
+          }
+        },
+        {
+          "id": "pol_role_based_access",
+          "name": "Role-Based System Access",
+          "if": {
+            "field": "employee.department",
+            "operator": "==",
+            "value": "engineering"
+          },
+          "then": {
+            "action": "provision_dev_access",
+            "params": {
+              "repositories": "department_specific",
+              "cloud_access": true
+            }
+          }
+        }
+      ],
+      "tasks": [
+        {
+          "id": "task_laptop_configuration",
+          "description": "Configure and deploy company laptop with required software",
+          "assignee": {
+            "type": "human",
+            "role": "it_technician",
+            "skills": ["hardware_setup", "software_installation"]
+          },
+          "config": {
+            "standard_image": "corporate_v2024",
+            "department_specific_tools": true
+          },
+          "timeout_minutes": 90
+        },
+        {
+          "id": "task_account_provisioning",
+          "description": "Create user accounts for email, collaboration tools, and business systems",
+          "assignee": {
+            "type": "ai_agent",
+            "model": "account_provisioner_v2",
+            "capabilities": ["identity_management", "role_based_access"]
+          },
+          "human_review": {
+            "required": true,
+            "reviewer_role": "it_security",
+            "sla_minutes": 30
+          },
+          "depends_on": ["task_laptop_configuration"]
+        },
+        {
+          "id": "task_physical_access",
+          "description": "Issue security badge and configure building access permissions",
+          "assignee": {
+            "type": "human",
+            "role": "security_coordinator"
+          },
+          "timeout_minutes": 30,
+          "outputs": ["badge_issued", "access_permissions_configured"]
+        }
+      ],
+      "forms": [
+        {
+          "id": "form_equipment_assignment",
+          "name": "Equipment Assignment Record",
+          "description": "Track assigned equipment and accessories",
+          "type": "automated",
+          "generation": "on_completion",
+          "data_sources": ["equipment_inventory", "employee_assignment"]
+        },
+        {
+          "id": "form_access_request",
+          "name": "System Access Request",
+          "description": "Request specific system and application access based on role",
+          "type": "structured",
+          "fields": [
+            {
+              "name": "required_systems",
+              "type": "multi_select",
+              "options": [
+                "email",
+                "crm",
+                "erp",
+                "development_tools",
+                "design_tools"
+              ]
+            },
+            {
+              "name": "access_justification",
+              "type": "textarea",
+              "required": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "goal_orientation_training",
+      "name": "Orientation & Training",
+      "description": "Deliver comprehensive orientation and role-specific training to ensure successful integration",
+      "order": 4,
+      "timeout_minutes": 480,
+      "constraints": [
+        {
+          "id": "const_training_completion",
+          "description": "You must not mark onboarding complete without mandatory training completion",
+          "type": "business_rule",
+          "condition": "mandatory_training_completed == true",
+          "enforcement": "block_progression"
+        },
+        {
+          "id": "const_buddy_assignment",
+          "description": "You must not start orientation without assigned onboarding buddy",
+          "type": "business_rule",
+          "condition": "buddy_assigned == true",
+          "enforcement": "require_approval"
+        }
+      ],
+      "policies": [
+        {
+          "id": "pol_management_role",
+          "name": "Management Training Required",
+          "if": {
+            "field": "position.management_level",
+            "operator": ">",
+            "value": 0
+          },
+          "then": {
+            "action": "add_management_training",
+            "params": {
+              "training_modules": [
+                "leadership_basics",
+                "performance_management",
+                "compliance"
+              ]
+            }
+          }
+        },
+        {
+          "id": "pol_training_progress",
+          "name": "Training Progress Monitoring",
+          "if": {
+            "field": "training_completion_rate",
+            "operator": "<",
+            "value": 0.7
+          },
+          "then": {
+            "action": "create_task",
+            "params": {
+              "task_type": "training_support",
+              "assign_to": "learning_specialist"
+            }
+          }
+        }
+      ],
+      "tasks": [
+        {
+          "id": "task_buddy_assignment",
+          "description": "Assign experienced team member as onboarding buddy",
+          "assignee": {
+            "type": "human",
+            "role": "team_lead"
+          },
+          "outputs": ["buddy_assigned", "introduction_scheduled"],
+          "timeout_minutes": 30
+        },
+        {
+          "id": "task_orientation_session",
+          "description": "Conduct company orientation covering culture, policies, and procedures",
+          "assignee": {
+            "type": "human",
+            "role": "hr_coordinator",
+            "skills": ["presentation", "facilitation"]
+          },
+          "depends_on": ["task_buddy_assignment"],
+          "timeout_minutes": 180
+        },
+        {
+          "id": "task_role_training",
+          "description": "Deliver role-specific training and system familiarization",
+          "assignee": {
+            "type": "human",
+            "role": "department_trainer"
+          },
+          "config": {
+            "training_modules": "role_specific",
+            "hands_on_practice": true
+          },
+          "timeout_minutes": 240
+        },
+        {
+          "id": "task_security_compliance",
+          "description": "Complete mandatory security and compliance training",
+          "assignee": {
+            "type": "ai_agent",
+            "model": "training_tracker_v1",
+            "capabilities": ["progress_monitoring", "quiz_administration"]
+          },
+          "human_review": {
+            "required": true,
+            "reviewer_role": "compliance_officer",
+            "sla_minutes": 60
+          },
+          "approval_required": true
+        }
+      ],
+      "forms": [
+        {
+          "id": "form_training_plan",
+          "name": "Personalized Training Plan",
+          "description": "Customized training schedule based on role and experience",
+          "type": "automated",
+          "generation": "on_goal_start",
+          "template": "role_based_training_template"
+        },
+        {
+          "id": "form_orientation_feedback",
+          "name": "Orientation Feedback Survey",
+          "description": "Collect feedback on orientation experience and suggestions",
+          "type": "conversational",
+          "agent": "feedback_collector_agent",
+          "initial_prompt": "How was your orientation experience? What went well and what could be improved?",
+          "context_provided": [
+            "orientation_agenda",
+            "training_modules_completed"
+          ]
+        },
+        {
+          "id": "form_90_day_checkin",
+          "name": "90-Day Check-in Form",
+          "description": "Comprehensive review of onboarding success and continued needs",
+          "type": "structured",
+          "sections": [
+            {
+              "name": "integration_assessment",
+              "fields": [
+                {
+                  "name": "role_clarity",
+                  "type": "scale",
+                  "min": 1,
+                  "max": 5,
+                  "required": true
+                },
+                {
+                  "name": "team_integration",
+                  "type": "scale",
+                  "min": 1,
+                  "max": 5,
+                  "required": true
+                }
+              ]
+            },
+            {
+              "name": "development_needs",
+              "fields": [
+                {
+                  "name": "additional_training",
+                  "type": "multi_select",
+                  "options": [
+                    "technical_skills",
+                    "soft_skills",
+                    "leadership",
+                    "compliance"
+                  ]
+                },
+                {
+                  "name": "career_goals",
+                  "type": "textarea"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "global_settings": {
+    "max_execution_time_hours": 336,
+    "data_retention_days": 2555,
+    "default_timezone": "America/New_York",
+    "notification_channels": {
+      "urgent": ["slack", "email"],
+      "normal": ["email"],
+      "reports": ["email", "dashboard"]
+    },
+    "integrations": {
+      "hr_system": {
+        "version": "v3.2",
+        "auth": "oauth2"
+      },
+      "identity_management": {
+        "provider": "active_directory",
+        "sync_enabled": true
+      },
+      "background_check": {
+        "vendor": "verified_credentials",
+        "api_version": "v2"
+      }
+    }
+  }
+}
