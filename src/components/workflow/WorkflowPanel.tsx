@@ -1,14 +1,18 @@
-import type { WorkflowTemplate } from "@/types/workflow";
-import { GoalCard } from "./GoalCard";
+import type { WorkflowTemplateV2, SelectedItemV2 } from "@/types/workflow-v2";
+import { GoalCardV2 } from "./GoalCardV2";
 import { ProgressConnector } from "./ProgressConnector";
 
 export interface WorkflowPanelProps {
-  workflow: WorkflowTemplate | null;
+  workflow: WorkflowTemplateV2 | null;
   workflowLoading: boolean;
   workflowError: string | null;
   selectedItemId: string | null;
-  selectedItemType: "goal" | "subtask" | null;
-  onItemSelect: (type: "goal" | "subtask", id: string) => void;
+  selectedItemType: "goal" | "constraint" | "policy" | "task" | "form" | null;
+  onItemSelect: (
+    type: "goal" | "constraint" | "policy" | "task" | "form",
+    id: string,
+    parentGoalId?: string
+  ) => void;
 }
 
 export function WorkflowPanel({
@@ -65,8 +69,12 @@ export function WorkflowPanel({
     onItemSelect("goal", goalId);
   };
 
-  const handleSubtaskSelect = (subtaskId: string) => {
-    onItemSelect("subtask", subtaskId);
+  const handleSubitemSelect = (
+    type: SelectedItemV2["type"],
+    id: string,
+    parentGoalId?: string
+  ) => {
+    onItemSelect(type, id, parentGoalId);
   };
 
   return (
@@ -78,34 +86,44 @@ export function WorkflowPanel({
             {workflow.name}
           </h2>
           <p className="text-neutral-600 dark:text-neutral-300">
-            {workflow.description}
+            {workflow.objective}
           </p>
+          <div className="flex items-center justify-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
+            <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs font-medium">
+              V2 Workflow
+            </span>
+            <span>•</span>
+            <span>{workflow.version}</span>
+          </div>
         </div>
 
         {/* Goals */}
-        {workflow.goals.map((goal, index) => (
-          <div key={goal.goalId}>
-            <GoalCard
-              goal={goal}
-              isSelected={
-                selectedItemType === "goal" && selectedItemId === goal.goalId
-              }
-              selectedSubtaskId={
-                selectedItemType === "subtask" ? selectedItemId : null
-              }
-              onGoalSelect={handleGoalSelect}
-              onSubtaskSelect={handleSubtaskSelect}
-            />
-
-            {/* Progress connector between goals */}
-            {index < workflow.goals.length - 1 && (
-              <ProgressConnector
-                fromStatus={goal.status}
-                toStatus={workflow.goals[index + 1].status}
+        {workflow.goals.map((goal, index) => {
+          return (
+            <div key={goal.id}>
+              <GoalCardV2
+                goal={goal}
+                isSelected={
+                  selectedItemType === "goal" && selectedItemId === goal.id
+                }
+                selectedSubitemId={selectedItemId}
+                selectedSubitemType={
+                  selectedItemType === "goal" ? null : selectedItemType
+                }
+                onGoalSelect={handleGoalSelect}
+                onSubitemSelect={handleSubitemSelect}
               />
-            )}
-          </div>
-        ))}
+
+              {/* Progress connector between goals */}
+              {index < workflow.goals.length - 1 && (
+                <ProgressConnector
+                  fromStatus={"PENDING"}
+                  toStatus={"PENDING"}
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
