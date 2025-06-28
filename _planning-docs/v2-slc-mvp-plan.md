@@ -297,30 +297,209 @@ Goal Card
 - Error handling for malformed workflow data
 - Schema validation utilities
 
+### Phase 5: AI Agent Workflow Template Editor (Week 6)
+
+**Objective**: Enable users to edit workflow templates through natural language chat using a Cloudflare AI agent with schema-aware tools.
+
+#### 5.1 Agent Architecture & Core Tools
+
+**Tool-Augmented Agent Design**:
+
+Instead of having the LLM directly edit JSON (which is error-prone), implement an agent that translates user requests into calls to well-defined, schema-aware tools.
+
+**Core Workflow Editing Tools**:
+
+```typescript
+// Essential semantic tools for workflow modification
+interface WorkflowEditingTools {
+  addGoal(workflow: WorkflowTemplateV2, goal: Goal): WorkflowTemplateV2;
+  updateGoal(workflow: WorkflowTemplateV2, goalId: string, updates: Partial<Goal>): WorkflowTemplateV2;
+  deleteGoal(workflow: WorkflowTemplateV2, goalId: string): WorkflowTemplateV2;
+  
+  addTask(workflow: WorkflowTemplateV2, goalId: string, task: Task): WorkflowTemplateV2;
+  updateTask(workflow: WorkflowTemplateV2, taskId: string, updates: Partial<Task>): WorkflowTemplateV2;
+  deleteTask(workflow: WorkflowTemplateV2, taskId: string): WorkflowTemplateV2;
+  
+  addConstraint(workflow: WorkflowTemplateV2, goalId: string, constraint: Constraint): WorkflowTemplateV2;
+  updateConstraint(workflow: WorkflowTemplateV2, constraintId: string, updates: Partial<Constraint>): WorkflowTemplateV2;
+  deleteConstraint(workflow: WorkflowTemplateV2, constraintId: string): WorkflowTemplateV2;
+  
+  addPolicy(workflow: WorkflowTemplateV2, goalId: string, policy: Policy): WorkflowTemplateV2;
+  updatePolicy(workflow: WorkflowTemplateV2, policyId: string, updates: Partial<Policy>): WorkflowTemplateV2;
+  deletePolicy(workflow: WorkflowTemplateV2, policyId: string): WorkflowTemplateV2;
+  
+  addForm(workflow: WorkflowTemplateV2, goalId: string, form: Form): WorkflowTemplateV2;
+  updateForm(workflow: WorkflowTemplateV2, formId: string, updates: Partial<Form>): WorkflowTemplateV2;
+  deleteForm(workflow: WorkflowTemplateV2, formId: string): WorkflowTemplateV2;
+}
+```
+
+**Agent Flow**:
+
+1. User sends chat message: "Add an email validation task to the user registration goal"
+2. Cloudflare Worker receives request with current workflow template
+3. Worker calls LLM with:
+   - User request
+   - Current workflow summary
+   - Available tools list
+   - System prompt emphasizing tool usage
+4. LLM responds with structured tool call: `{ "tool": "addTask", "params": { "goalId": "user_reg", "task": {...} } }`
+5. Worker executes tool function, validates result against V2 schema
+6. If valid: save new version; if invalid: feedback to LLM for self-correction
+7. Update UI with new workflow template
+
+#### 5.2 Version Control System
+
+**Simple Immutable Versioning**:
+
+- Store workflow template versions in Cloudflare R2 as `workflows/{template_id}/v{version}.json`
+- Maintain version metadata in simple JSON index file
+- Every successful edit creates new version (no in-place updates)
+- Provide UI for viewing version history and reverting to previous versions
+
+```typescript
+interface WorkflowVersion {
+  version: number;
+  templateId: string;
+  createdAt: string;
+  createdBy: string;
+  editSummary: string; // AI-generated summary of what changed
+  filePath: string;    // R2 object path
+}
+
+interface WorkflowVersionIndex {
+  templateId: string;
+  currentVersion: number;
+  versions: WorkflowVersion[];
+}
+```
+
+#### 5.3 Chat Integration & Real-time Updates
+
+**Enhanced Chat Panel**:
+
+- Extend existing ChatPanel to include "Edit Mode" toggle
+- When in edit mode, chat messages go to workflow editing agent
+- Display agent's tool calls and results in chat history
+- Show "Agent is thinking..." and "Validating changes..." states
+
+**Real-time UI Updates**:
+
+- For MVP: Simple page refresh after successful edits
+- Future: WebSocket updates via Durable Objects for multi-user scenarios
+- Version selector in UI to switch between workflow template versions
+
+#### 5.4 Schema Validation & Safety
+
+**Validation Safety Net**:
+
+- Every tool function output must pass V2 schema validation
+- Failed validation triggers automatic LLM self-correction loop
+- Maximum 2 retry attempts per user request to prevent infinite loops
+- Clear error messages when agent cannot complete the requested edit
+
+**Agent Safety Measures**:
+
+- Strong system prompt preventing prompt injection
+- Tool-level permission checking (future: user-based permissions)
+- Audit log of all edit attempts and outcomes
+- Schema validation prevents corrupted workflow data
+
+#### 5.5 Implementation Components
+
+**New Files**:
+
+```
+src/
+├── agents/
+│   ├── workflowEditingAgent.ts      # Main agent orchestrator
+│   ├── workflowEditingTools.ts      # Semantic editing tools
+│   └── promptTemplates.ts           # LLM system prompts
+├── services/
+│   ├── workflowVersioning.ts        # R2-based version control
+│   └── schemaValidation.ts          # Enhanced validation with feedback
+└── components/
+    ├── chat/
+    │   ├── EditModeToggle.tsx        # Chat panel edit mode UI
+    │   └── AgentStatusDisplay.tsx    # Show agent thinking/working states
+    └── workflow/
+        └── VersionSelector.tsx       # UI for switching template versions
+```
+
+**Worker Endpoints**:
+
+- `POST /api/workflow/edit` - Submit chat message for workflow editing
+- `GET /api/workflow/{id}/versions` - List all versions of a workflow template
+- `GET /api/workflow/{id}/version/{v}` - Get specific version of workflow template
+- `POST /api/workflow/{id}/revert/{v}` - Revert to specific version
+
+#### 5.6 Success Criteria
+
+- [ ] Agent can successfully add/update/delete goals, tasks, constraints, policies, and forms via natural language
+- [ ] All edits pass V2 schema validation before being saved
+- [ ] Version history maintained with ability to revert to any previous version
+- [ ] Chat interface clearly shows agent actions and results
+- [ ] UI updates immediately after successful workflow template edits
+- [ ] Agent provides helpful error messages when requests are ambiguous or invalid
+- [ ] System handles malformed agent responses gracefully without data corruption
+
+#### 5.7 Example User Interactions
+
+**Adding a Task**:
+```
+User: "Add a background check task to the employee onboarding goal"
+Agent: "I'll add a background check task to the 'Complete Employee Setup' goal. 
+        Tool: addTask(goalId: 'employee_setup', task: {
+          id: 'background_check_001',
+          description: 'Conduct comprehensive background check for new employee',
+          assignee: { type: 'human', role: 'HR Specialist' },
+          timeout_minutes: 4320,
+          depends_on: ['identity_verification']
+        })
+        ✅ Successfully added background check task. Workflow updated to version 3."
+```
+
+**Updating Constraints**:
+```
+User: "Make the time limit for shift categorization stricter - 30 minutes instead of 60"
+Agent: "I'll update the time limit constraint for shift categorization from 60 to 30 minutes.
+        Tool: updateConstraint(constraintId: 'categorization_time_limit', updates: { value: 30 })
+        ✅ Successfully updated constraint. Workflow updated to version 4."
+```
+
+**Complex Multi-step Changes**:
+```
+User: "Add a customer satisfaction survey form and a task to analyze the results"
+Agent: "I'll add both a customer satisfaction survey form and an analysis task. Let me do this in two steps:
+        1. Tool: addForm(goalId: 'analyze_improve', form: { ... survey form definition ... })
+        2. Tool: addTask(goalId: 'analyze_improve', task: { ... analysis task ... })
+        ✅ Successfully added survey form and analysis task. Workflow updated to version 5."
+```
+
 ## Future Phases (Require Additional Planning)
 
-### Phase 5: Policy Evaluation Engine
+### Phase 6: Policy Evaluation Engine
 
 - Basic if-then rule processing
 - Condition evaluation with workflow context
 - Action triggering and side effects
 - Policy conflict resolution
 
-### Phase 6: Task Assignment System
+### Phase 7: Task Assignment System
 
 - Human task queue management
 - AI agent integration points
 - Task dependency resolution
 - Assignment routing and notifications
 
-### Phase 7: Form Engine & Data Collection
+### Phase 8: Form Engine & Data Collection
 
 - Dynamic form generation
 - Conversational form agents
 - Data validation and submission
 - Form state management
 
-### Phase 8: Workflow Execution Engine
+### Phase 9: Workflow Execution Engine
 
 - Goal progression logic
 - Constraint enforcement
