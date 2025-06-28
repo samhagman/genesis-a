@@ -107,7 +107,14 @@ export default function App() {
       </div>
 
       <ThreePanelLayout
-        leftPanel={<ChatPanel theme={theme} onThemeToggle={toggleTheme} />}
+        leftPanel={
+          <ChatPanel
+            theme={theme}
+            onThemeToggle={toggleTheme}
+            workflow={workflow}
+            onWorkflowUpdate={setWorkflow}
+          />
+        }
         centerPanel={
           <WorkflowPanel
             workflow={workflow}

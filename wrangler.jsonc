@@ -45,6 +45,27 @@
    */
 
   /**
+   * AI Inference Binding
+   * Enables access to Cloudflare Workers AI for LLM-powered workflow editing
+   * https://developers.cloudflare.com/workers/wrangler/configuration/#ai
+   */
+  "ai": {
+    "binding": "AI",
+  },
+
+  /**
+   * R2 Object Storage Binding
+   * Used for immutable workflow template version control
+   * https://developers.cloudflare.com/workers/wrangler/configuration/#r2-buckets
+   */
+  "r2_buckets": [
+    {
+      "binding": "WORKFLOW_VERSIONS",
+      "bucket_name": "genesis-workflow-versions",
+    },
+  ],
+
+  /**
    * Environment Variables
    * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
    */

@@ -6,11 +6,14 @@ import type {
   Task,
   Form,
 } from "@/types/workflow-v2";
+import { VersionSelector } from "@/components/workflow/VersionSelector";
 
 export interface InspectorPanelProps {
   workflow: WorkflowTemplateV2 | null;
   selectedItemId: string | null;
   selectedItemType: "goal" | "constraint" | "policy" | "task" | "form" | null;
+  currentVersion?: number;
+  onVersionChange?: (version: number, workflow: WorkflowTemplateV2) => void;
 }
 
 // Helper functions to find elements by ID and type
@@ -671,6 +674,8 @@ export function InspectorPanel({
   workflow,
   selectedItemId,
   selectedItemType,
+  currentVersion,
+  onVersionChange,
 }: InspectorPanelProps) {
   // Show loading state if workflow is not loaded
   if (!workflow) {
@@ -777,6 +782,13 @@ export function InspectorPanel({
             </p>
           </div>
         </div>
+
+        {/* Version Selector */}
+        <VersionSelector
+          workflow={workflow}
+          currentVersion={currentVersion}
+          onVersionChange={onVersionChange}
+        />
 
         <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
           <p className="text-blue-700 dark:text-blue-300 text-sm">

@@ -313,23 +313,65 @@ Instead of having the LLM directly edit JSON (which is error-prone), implement a
 // Essential semantic tools for workflow modification
 interface WorkflowEditingTools {
   addGoal(workflow: WorkflowTemplateV2, goal: Goal): WorkflowTemplateV2;
-  updateGoal(workflow: WorkflowTemplateV2, goalId: string, updates: Partial<Goal>): WorkflowTemplateV2;
+  updateGoal(
+    workflow: WorkflowTemplateV2,
+    goalId: string,
+    updates: Partial<Goal>
+  ): WorkflowTemplateV2;
   deleteGoal(workflow: WorkflowTemplateV2, goalId: string): WorkflowTemplateV2;
-  
-  addTask(workflow: WorkflowTemplateV2, goalId: string, task: Task): WorkflowTemplateV2;
-  updateTask(workflow: WorkflowTemplateV2, taskId: string, updates: Partial<Task>): WorkflowTemplateV2;
+
+  addTask(
+    workflow: WorkflowTemplateV2,
+    goalId: string,
+    task: Task
+  ): WorkflowTemplateV2;
+  updateTask(
+    workflow: WorkflowTemplateV2,
+    taskId: string,
+    updates: Partial<Task>
+  ): WorkflowTemplateV2;
   deleteTask(workflow: WorkflowTemplateV2, taskId: string): WorkflowTemplateV2;
-  
-  addConstraint(workflow: WorkflowTemplateV2, goalId: string, constraint: Constraint): WorkflowTemplateV2;
-  updateConstraint(workflow: WorkflowTemplateV2, constraintId: string, updates: Partial<Constraint>): WorkflowTemplateV2;
-  deleteConstraint(workflow: WorkflowTemplateV2, constraintId: string): WorkflowTemplateV2;
-  
-  addPolicy(workflow: WorkflowTemplateV2, goalId: string, policy: Policy): WorkflowTemplateV2;
-  updatePolicy(workflow: WorkflowTemplateV2, policyId: string, updates: Partial<Policy>): WorkflowTemplateV2;
-  deletePolicy(workflow: WorkflowTemplateV2, policyId: string): WorkflowTemplateV2;
-  
-  addForm(workflow: WorkflowTemplateV2, goalId: string, form: Form): WorkflowTemplateV2;
-  updateForm(workflow: WorkflowTemplateV2, formId: string, updates: Partial<Form>): WorkflowTemplateV2;
+
+  addConstraint(
+    workflow: WorkflowTemplateV2,
+    goalId: string,
+    constraint: Constraint
+  ): WorkflowTemplateV2;
+  updateConstraint(
+    workflow: WorkflowTemplateV2,
+    constraintId: string,
+    updates: Partial<Constraint>
+  ): WorkflowTemplateV2;
+  deleteConstraint(
+    workflow: WorkflowTemplateV2,
+    constraintId: string
+  ): WorkflowTemplateV2;
+
+  addPolicy(
+    workflow: WorkflowTemplateV2,
+    goalId: string,
+    policy: Policy
+  ): WorkflowTemplateV2;
+  updatePolicy(
+    workflow: WorkflowTemplateV2,
+    policyId: string,
+    updates: Partial<Policy>
+  ): WorkflowTemplateV2;
+  deletePolicy(
+    workflow: WorkflowTemplateV2,
+    policyId: string
+  ): WorkflowTemplateV2;
+
+  addForm(
+    workflow: WorkflowTemplateV2,
+    goalId: string,
+    form: Form
+  ): WorkflowTemplateV2;
+  updateForm(
+    workflow: WorkflowTemplateV2,
+    formId: string,
+    updates: Partial<Form>
+  ): WorkflowTemplateV2;
   deleteForm(workflow: WorkflowTemplateV2, formId: string): WorkflowTemplateV2;
 }
 ```
@@ -364,7 +406,7 @@ interface WorkflowVersion {
   createdAt: string;
   createdBy: string;
   editSummary: string; // AI-generated summary of what changed
-  filePath: string;    // R2 object path
+  filePath: string; // R2 object path
 }
 
 interface WorkflowVersionIndex {
@@ -446,9 +488,10 @@ src/
 #### 5.7 Example User Interactions
 
 **Adding a Task**:
+
 ```
 User: "Add a background check task to the employee onboarding goal"
-Agent: "I'll add a background check task to the 'Complete Employee Setup' goal. 
+Agent: "I'll add a background check task to the 'Complete Employee Setup' goal.
         Tool: addTask(goalId: 'employee_setup', task: {
           id: 'background_check_001',
           description: 'Conduct comprehensive background check for new employee',
@@ -460,6 +503,7 @@ Agent: "I'll add a background check task to the 'Complete Employee Setup' goal.
 ```
 
 **Updating Constraints**:
+
 ```
 User: "Make the time limit for shift categorization stricter - 30 minutes instead of 60"
 Agent: "I'll update the time limit constraint for shift categorization from 60 to 30 minutes.
@@ -468,6 +512,7 @@ Agent: "I'll update the time limit constraint for shift categorization from 60 t
 ```
 
 **Complex Multi-step Changes**:
+
 ```
 User: "Add a customer satisfaction survey form and a task to analyze the results"
 Agent: "I'll add both a customer satisfaction survey form and an analysis task. Let me do this in two steps:

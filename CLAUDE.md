@@ -23,20 +23,27 @@
 - Assume a desktop view for this application. Mobile or tablet views are not important or relevant
 
 # Writing tests guidelines
+
 1. Content-First Testing
+
 - Focus on what users see/interact with, not implementation details
 
 2. Flexible Text Matching
+
 - Use regex patterns and semantic queries instead of exact strings
 
 3. Structure Over Style
+
 - Test HTML structure not CSS classes
 
 4. Semantic Queries
+
 - Use role-based queries when possible
 
 5. Error Handling Clarity
+
 - Test error types and contracts explicitly
 
 6. Async-Aware
-- Default to findBy* queries for anything that might be async
+
+- Default to findBy\* queries for anything that might be async

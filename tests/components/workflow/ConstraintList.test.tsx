@@ -177,7 +177,7 @@ describe("ConstraintList", () => {
       />
     );
 
-    // Check that enforcement types are indicated in tooltips  
+    // Check that enforcement types are indicated in tooltips
     const enforcementIcon = screen.getByTitle("Enforcement: hard_stop");
     expect(enforcementIcon).toBeInTheDocument();
   });

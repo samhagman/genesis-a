@@ -599,9 +599,7 @@ function validateRequiredField(
     return;
   }
 
-  const actualType = Array.isArray(obj[field])
-    ? "array"
-    : typeof obj[field];
+  const actualType = Array.isArray(obj[field]) ? "array" : typeof obj[field];
 
   if (actualType !== expectedType) {
     errors.push({
@@ -648,4 +646,107 @@ export function validateWorkflowV2WithDetails(
   workflow: unknown
 ): ValidationResult {
   return validateWorkflowV2(workflow);
+}
+
+// ============================================================================
+// Simple validation functions for WorkflowEditingTools
+// These functions throw errors instead of returning ValidationResult objects
+// ============================================================================
+
+/**
+ * Validates a WorkflowTemplateV2 and throws an error if invalid
+ */
+export function validateWorkflowV2Strict(workflow: unknown): void {
+  const result = validateWorkflowV2(workflow);
+  if (!result.isValid) {
+    const errorMessages = result.errors
+      .map((e) => `${e.path}: ${e.message}`)
+      .join("; ");
+    throw new Error(`Workflow validation failed: ${errorMessages}`);
+  }
+}
+
+/**
+ * Validates a Goal and throws an error if invalid
+ */
+export function validateGoalStrict(goal: unknown): void {
+  const errors: ValidationError[] = [];
+  const warnings: ValidationWarning[] = [];
+
+  validateGoal(goal, "goal", errors, warnings);
+
+  if (errors.length > 0) {
+    const errorMessages = errors
+      .map((e) => `${e.path}: ${e.message}`)
+      .join("; ");
+    throw new Error(`Goal validation failed: ${errorMessages}`);
+  }
+}
+
+/**
+ * Validates a Constraint and throws an error if invalid
+ */
+export function validateConstraintStrict(constraint: unknown): void {
+  const errors: ValidationError[] = [];
+  const warnings: ValidationWarning[] = [];
+
+  validateConstraint(constraint, "constraint", errors, warnings);
+
+  if (errors.length > 0) {
+    const errorMessages = errors
+      .map((e) => `${e.path}: ${e.message}`)
+      .join("; ");
+    throw new Error(`Constraint validation failed: ${errorMessages}`);
+  }
+}
+
+/**
+ * Validates a Policy and throws an error if invalid
+ */
+export function validatePolicyStrict(policy: unknown): void {
+  const errors: ValidationError[] = [];
+  const warnings: ValidationWarning[] = [];
+
+  validatePolicy(policy, "policy", errors, warnings);
+
+  if (errors.length > 0) {
+    const errorMessages = errors
+      .map((e) => `${e.path}: ${e.message}`)
+      .join("; ");
+    throw new Error(`Policy validation failed: ${errorMessages}`);
+  }
+}
+
+/**
+ * Validates a Task and throws an error if invalid
+ */
+export function validateTaskStrict(task: unknown): void {
+  const errors: ValidationError[] = [];
+  const warnings: ValidationWarning[] = [];
+
+  validateTask(task, "task", errors, warnings);
+
+  if (errors.length > 0) {
+    const errorMessages = errors
+      .map((e) => `${e.path}: ${e.message}`)
+      .join("; ");
+    throw new Error(`Task validation failed: ${errorMessages}`);
+  }
+}
+
+/**
+ * Validates a Form and throws an error if invalid
+ */
+export function validateFormStrict(form: unknown): void {
+  const errors: ValidationError[] = [];
+  const warnings: ValidationWarning[] = [];
+
+  validateForm(form, "form", errors, warnings);
+
+  if (errors.length > 0) {
+    const errorMessages = errors
+      .map((e) => `${e.path}: ${e.message}`)
+      .join("; ");
+    throw new Error(`Form validation failed: ${errorMessages}`);
+  }
 }

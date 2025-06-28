@@ -252,7 +252,9 @@ describe("PolicyList", () => {
     );
 
     // Check that the selected policy has some visual indicator
-    const selectedPolicyContainer = screen.getByText("High Priority Shift Auto-categorization").closest('div');
+    const selectedPolicyContainer = screen
+      .getByText("High Priority Shift Auto-categorization")
+      .closest("div");
     expect(selectedPolicyContainer).toBeInTheDocument();
   });
 

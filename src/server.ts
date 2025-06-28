@@ -13,6 +13,11 @@ import {
 import { openai } from "@ai-sdk/openai";
 import { processToolCalls } from "./utils";
 import { tools, executions } from "./tools";
+import {
+  routeWorkflowEditingAPI,
+  validateWorkflowEditingEnv,
+  type WorkflowEditingEnv,
+} from "./api/workflowEditing";
 // import { env } from "cloudflare:workers";
 
 const model = openai("gpt-4o-2024-11-20");
@@ -118,6 +123,29 @@ export default {
         "OPENAI_API_KEY is not set, don't forget to set it locally in .dev.vars, and use `wrangler secret bulk .dev.vars` to upload it to production"
       );
     }
+
+    // Route workflow editing API requests
+    if (url.pathname.startsWith("/api/workflow/")) {
+      if (validateWorkflowEditingEnv(env)) {
+        const workflowResponse = await routeWorkflowEditingAPI(
+          request,
+          env as WorkflowEditingEnv
+        );
+        if (workflowResponse) {
+          return workflowResponse;
+        }
+      } else {
+        return Response.json(
+          {
+            success: false,
+            message: "Workflow editing service not properly configured",
+            errorDetails: "Missing AI or WORKFLOW_VERSIONS bindings",
+          },
+          { status: 503 }
+        );
+      }
+    }
+
     return (
       // Route the request to our agent or return 404 if not found
       (await routeAgentRequest(request, env)) ||

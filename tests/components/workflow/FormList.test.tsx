@@ -183,7 +183,7 @@ describe("FormList", () => {
 
     // Check field counts - verify that counts are displayed
     expect(screen.getByText("2 fields")).toBeInTheDocument(); // Simple form
-    const fieldsMatches = screen.getAllByText(/\d+\s+fields?/); 
+    const fieldsMatches = screen.getAllByText(/\d+\s+fields?/);
     expect(fieldsMatches.length).toBeGreaterThan(0); // Should have field counts displayed
     const sectionsMatches = screen.getAllByText(/\d+\s+sections?/);
     expect(sectionsMatches.length).toBeGreaterThan(0); // Should have section counts displayed
@@ -198,11 +198,13 @@ describe("FormList", () => {
       />
     );
 
-    expect(screen.getByText(/🤖 eligibility-checker/)).toBeInTheDocument(); // agent  
+    expect(screen.getByText(/🤖 eligibility-checker/)).toBeInTheDocument(); // agent
     expect(screen.getByText(/📄 Template/)).toBeInTheDocument(); // template
     expect(screen.getByText(/📝 Pre-filled/)).toBeInTheDocument(); // pre_filled
     // Check that generation type is displayed somewhere (could be in various formats)
-    const formContainer = screen.getByText("Automated Shift Report").closest('div');
+    const formContainer = screen
+      .getByText("Automated Shift Report")
+      .closest("div");
     expect(formContainer).toBeInTheDocument(); // Just verify the automated form is rendered
   });
 
@@ -295,7 +297,9 @@ describe("FormList", () => {
       />
     );
 
-    const selectedForm = screen.getByText("Shift Feedback Collection").closest('[data-testid], [aria-selected], div');
+    const selectedForm = screen
+      .getByText("Shift Feedback Collection")
+      .closest("[data-testid], [aria-selected], div");
     expect(selectedForm).toBeInTheDocument();
     // Focus on structural indication rather than specific CSS classes
   });
@@ -311,7 +315,9 @@ describe("FormList", () => {
 
     // Check that the selected form has some visual indicator
     // Focus on the selected form being distinguishable rather than specific styling
-    const selectedFormContainer = screen.getByText("Worker Eligibility Form").closest('div');
+    const selectedFormContainer = screen
+      .getByText("Worker Eligibility Form")
+      .closest("div");
     expect(selectedFormContainer).toBeInTheDocument();
   });
 

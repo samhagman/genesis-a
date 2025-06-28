@@ -158,15 +158,15 @@ export function ConstraintList({
                       {constraint.type.replace("_", " ")}
                     </span>
 
-                    {(constraint.value !== undefined || 
+                    {(constraint.value !== undefined ||
                       (constraint as any).limit !== undefined ||
                       (constraint as any).max_value !== undefined) && (
                       <span className="text-xs text-neutral-500 dark:text-neutral-400">
                         Value:{" "}
-                        {constraint.value !== undefined 
-                          ? (typeof constraint.value === "object"
-                              ? JSON.stringify(constraint.value)
-                              : constraint.value)
+                        {constraint.value !== undefined
+                          ? typeof constraint.value === "object"
+                            ? JSON.stringify(constraint.value)
+                            : constraint.value
                           : (constraint as any).limit !== undefined
                             ? (constraint as any).limit
                             : (constraint as any).max_value}

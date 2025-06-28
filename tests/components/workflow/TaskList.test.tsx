@@ -244,7 +244,9 @@ describe("TaskList", () => {
     );
 
     // Check that the selected task has some visual indicator
-    const selectedTaskContainer = screen.getByText("Review and categorize incoming shift requests").closest('div');
+    const selectedTaskContainer = screen
+      .getByText("Review and categorize incoming shift requests")
+      .closest("div");
     expect(selectedTaskContainer).toBeInTheDocument();
   });
 
