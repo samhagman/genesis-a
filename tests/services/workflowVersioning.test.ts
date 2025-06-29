@@ -4,11 +4,12 @@
  * Uses real Cloudflare runtime (workerd) for maximum production fidelity
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { env } from "cloudflare:test";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkflowVersioningService } from "../../src/services/workflowVersioning";
 import type { WorkflowTemplateV2 } from "../../src/types/workflow-v2";
-import { TEST_USER_ID, getTestWorkflowId } from "../env.d.ts";
+import { TEST_USER_ID } from "../env.d.ts";
+import { getTestWorkflowId } from "../workers-setup";
 
 describe("WorkflowVersioningService", () => {
   let versioningService: WorkflowVersioningService;
@@ -68,7 +69,10 @@ describe("WorkflowVersioningService", () => {
       expect(result.skipped).toBeUndefined();
 
       // Verify workflow content was saved correctly by loading through service
-      const savedWorkflow = await versioningService.loadVersion(testWorkflowId, 1);
+      const savedWorkflow = await versioningService.loadVersion(
+        testWorkflowId,
+        1
+      );
       expect(savedWorkflow).not.toBeNull();
       expect(savedWorkflow).toEqual(testWorkflow);
 
@@ -192,7 +196,10 @@ describe("WorkflowVersioningService", () => {
 
       // Verify version 2 exists by loading it through the service
       // This avoids direct R2 access that might cause isolated storage issues
-      const loadedWorkflow = await versioningService.loadVersion(testWorkflowId, 2);
+      const loadedWorkflow = await versioningService.loadVersion(
+        testWorkflowId,
+        2
+      );
       expect(loadedWorkflow).not.toBeNull();
       expect(loadedWorkflow?.id).toBe(testWorkflowId);
     });
@@ -436,17 +443,19 @@ describe("WorkflowVersioningService", () => {
         get: vi.fn().mockResolvedValue(null), // Allow get to succeed for initial checks
         put: vi.fn().mockRejectedValue(new Error("R2 put operation failed")),
         delete: vi.fn().mockResolvedValue(undefined),
-        list: vi.fn().mockResolvedValue({ objects: [] })
+        list: vi.fn().mockResolvedValue({ objects: [] }),
       };
 
-      const failingService = new WorkflowVersioningService(failingR2Bucket as any);
+      const failingService = new WorkflowVersioningService(
+        failingR2Bucket as R2Bucket
+      );
 
       const result = await failingService.saveVersion(
         testWorkflowId,
         testWorkflow,
         {
           userId: TEST_USER_ID,
-          editSummary: "Test save with R2 failure"
+          editSummary: "Test save with R2 failure",
         }
       );
 
@@ -460,7 +469,7 @@ describe("WorkflowVersioningService", () => {
       const failingR2Bucket = {
         get: vi.fn().mockImplementation(async (key: string) => {
           // Allow index operations to succeed (return null = no index exists yet)
-          if (key.includes('/index.json')) {
+          if (key.includes("/index.json")) {
             return null;
           }
           // Fail workflow file operations
@@ -468,10 +477,12 @@ describe("WorkflowVersioningService", () => {
         }),
         put: vi.fn().mockResolvedValue(undefined),
         delete: vi.fn().mockResolvedValue(undefined),
-        list: vi.fn().mockResolvedValue({ objects: [] })
+        list: vi.fn().mockResolvedValue({ objects: [] }),
       };
 
-      const failingService = new WorkflowVersioningService(failingR2Bucket as any);
+      const failingService = new WorkflowVersioningService(
+        failingR2Bucket as R2Bucket
+      );
 
       // Test loadCurrentVersion with get failure - should return undefined since no index exists
       const workflow = await failingService.loadCurrentVersion(testWorkflowId);
@@ -479,7 +490,10 @@ describe("WorkflowVersioningService", () => {
       expect(failingR2Bucket.get).toHaveBeenCalled();
 
       // Test loadVersion with get failure - should return undefined due to file get failure
-      const versionWorkflow = await failingService.loadVersion(testWorkflowId, 1);
+      const versionWorkflow = await failingService.loadVersion(
+        testWorkflowId,
+        1
+      );
       expect(versionWorkflow).toBeUndefined();
     });
 

@@ -1,7 +1,7 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
 import { GoalCardV2 } from "@/components/workflow/GoalCardV2";
 import type { Goal } from "@/types/workflow-v2";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 const mockGoal: Goal = {
   id: "test-goal",

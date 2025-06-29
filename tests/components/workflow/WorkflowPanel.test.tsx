@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
 import { WorkflowPanel } from "@/components/workflow/WorkflowPanel";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 describe("WorkflowPanel", () => {
   const baseMockProps = {

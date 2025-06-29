@@ -1,18 +1,18 @@
-import { useEffect, useState, use } from "react";
+import { use, useEffect, useState } from "react";
 
+import { ChatPanel } from "@/components/chat/ChatPanel";
+import { ScenarioSwitcher } from "@/components/development/ScenarioSwitcher";
+import { InspectorPanel } from "@/components/inspector/InspectorPanel";
 // Component imports
 import { ThreePanelLayout } from "@/components/layout/ThreePanelLayout";
-import { ChatPanel } from "@/components/chat/ChatPanel";
 import { WorkflowPanel } from "@/components/workflow/WorkflowPanel";
-import { InspectorPanel } from "@/components/inspector/InspectorPanel";
-import { ScenarioSwitcher } from "@/components/development/ScenarioSwitcher";
 
+import { useWorkflowActions } from "@/state/hooks";
+import { getAllScenarios } from "@/state/mockScenarios";
+import { useWorkflowStore } from "@/state/workflowStore";
 // Types and utilities
 import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
 import { loadWorkflowTemplate } from "@/workflows";
-import { getAllScenarios } from "@/state/mockScenarios";
-import { useWorkflowStore } from "@/state/workflowStore";
-import { useWorkflowActions } from "@/state/hooks";
 
 export default function App() {
   const [theme, setTheme] = useState<"dark" | "light">(() => {

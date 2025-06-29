@@ -4,11 +4,11 @@
  * Tests for the Zustand-based workflow state management system.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
-import { TestWorkflowRepository } from "@/state/testRepository";
 import { createWorkflowInstance } from "@/state/instanceFactory";
-import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
+import { TestWorkflowRepository } from "@/state/testRepository";
 import type { ExecutionStatus } from "@/types/workflow-instance";
+import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
+import { beforeEach, describe, expect, it } from "vitest";
 
 // Mock workflow template for testing
 const mockTemplate: WorkflowTemplateV2 = {

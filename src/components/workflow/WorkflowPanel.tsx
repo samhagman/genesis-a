@@ -1,4 +1,4 @@
-import type { WorkflowTemplateV2, SelectedItemV2 } from "@/types/workflow-v2";
+import type { SelectedItemV2, WorkflowTemplateV2 } from "@/types/workflow-v2";
 import { GoalCardV2 } from "./GoalCardV2";
 import { ProgressConnector } from "./ProgressConnector";
 

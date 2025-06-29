@@ -5,9 +5,9 @@
 import { tool } from "ai";
 import { z } from "zod";
 
-import type { Chat } from "./server";
 import { getCurrentAgent } from "agents";
 import { unstable_scheduleSchema } from "agents/schedule";
+import type { Chat } from "./server";
 
 /**
  * Weather information tool that requires human confirmation

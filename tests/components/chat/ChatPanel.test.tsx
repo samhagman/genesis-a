@@ -1,6 +1,26 @@
-import { describe, it, expect } from "vitest";
-import { render } from "@testing-library/react";
 import { ChatPanel } from "@/components/chat/ChatPanel";
+import { render, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
+// Mock the agent hooks that cause async behavior
+vi.mock("agents/ai-react", () => ({
+  useAgentChat: () => ({
+    messages: [],
+    input: "",
+    handleInputChange: vi.fn(),
+    handleSubmit: vi.fn(),
+    addToolResult: vi.fn(),
+    clearHistory: vi.fn(),
+    isLoading: false,
+    stop: vi.fn(),
+  }),
+}));
+
+vi.mock("agents/react", () => ({
+  useAgent: () => ({
+    agent: "chat",
+  }),
+}));
 
 describe("ChatPanel", () => {
   it("renders without crashing", () => {
@@ -12,7 +32,7 @@ describe("ChatPanel", () => {
     expect(() => render(<ChatPanel {...mockProps} />)).not.toThrow();
   });
 
-  it("shows edit mode toggle when workflow is provided", () => {
+  it("shows edit mode toggle when workflow is provided", async () => {
     const mockWorkflow = {
       id: "test-workflow",
       name: "Test Workflow",
@@ -36,11 +56,13 @@ describe("ChatPanel", () => {
 
     const { container } = render(<ChatPanel {...mockProps} />);
 
-    // The component should render with workflow editing capabilities
-    expect(container).toBeTruthy();
+    // Wait for async operations to complete
+    await waitFor(() => {
+      expect(container).toBeTruthy();
+    });
   });
 
-  it("disables edit mode when no workflow is provided", () => {
+  it("disables edit mode when no workflow is provided", async () => {
     const mockProps = {
       theme: "dark" as const,
       onThemeToggle: () => {},
@@ -50,7 +72,9 @@ describe("ChatPanel", () => {
 
     const { container } = render(<ChatPanel {...mockProps} />);
 
-    // The component should render but edit mode should be disabled
-    expect(container).toBeTruthy();
+    // Wait for async operations to complete
+    await waitFor(() => {
+      expect(container).toBeTruthy();
+    });
   });
 });

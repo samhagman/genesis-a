@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { WorkflowEditingAgent } from "@/agents/workflowEditingAgent";
 import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock the AI interface
 const mockAI = {
   run: vi.fn(),
-} as any;
+} as Ai;
 
 // Mock workflow for testing
 const testWorkflow: WorkflowTemplateV2 = {
@@ -193,7 +193,7 @@ describe("WorkflowEditingAgent Validation Safety Net", () => {
 
     // Test private method through reflection
     const generateGuidance = (
-      agent as any
+      agent as unknown
     ).generateValidationErrorGuidance.bind(agent);
 
     // Test required field validation error guidance (matching actual error format)

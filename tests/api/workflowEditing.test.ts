@@ -3,7 +3,7 @@
  * Validates HTTP API integration with WorkflowEditingAgent and WorkflowVersioningService
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   WorkflowEditingAPI,
   routeWorkflowEditingAPI,
@@ -12,7 +12,7 @@ import {
 import type { WorkflowTemplateV2 } from "../../src/types/workflow-v2";
 
 describe("WorkflowEditingAPI", () => {
-  let mockEnv: any;
+  let mockEnv: WorkflowEditingEnv;
   let api: WorkflowEditingAPI;
   let testWorkflow: WorkflowTemplateV2;
 
@@ -45,21 +45,31 @@ describe("WorkflowEditingAPI", () => {
     // Mock R2 bucket
     const storage = new Map<
       string,
-      { content: string; metadata?: any; customMetadata?: any }
+      {
+        content: string;
+        metadata?: Record<string, unknown>;
+        customMetadata?: Record<string, unknown>;
+      }
     >();
     const mockR2 = {
-      put: vi.fn(async (key: string, content: any, options?: any) => {
-        const contentStr =
-          typeof content === "string"
-            ? content
-            : new TextDecoder().decode(content);
-        storage.set(key, {
-          content: contentStr,
-          metadata: options?.httpMetadata,
-          customMetadata: options?.customMetadata,
-        });
-        return Promise.resolve();
-      }),
+      put: vi.fn(
+        async (
+          key: string,
+          content: string | Uint8Array,
+          options?: Record<string, unknown>
+        ) => {
+          const contentStr =
+            typeof content === "string"
+              ? content
+              : new TextDecoder().decode(content);
+          storage.set(key, {
+            content: contentStr,
+            metadata: options?.httpMetadata,
+            customMetadata: options?.customMetadata,
+          });
+          return Promise.resolve();
+        }
+      ),
       get: vi.fn(async (key: string) => {
         const item = storage.get(key);
         if (!item) return null;

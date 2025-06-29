@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Gear, CheckCircle, XCircle, Clock } from "@phosphor-icons/react";
+import { CheckCircle, Clock, Gear, XCircle } from "@phosphor-icons/react";
+import { useEffect, useState } from "react";
 
 export type AgentStatus =
   | "idle"

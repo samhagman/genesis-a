@@ -6,10 +6,10 @@
  */
 
 import type {
-  WorkflowInstance,
-  RuntimeEnvelope,
-  ExecutionStatus,
   ExecutionScenario,
+  ExecutionStatus,
+  RuntimeEnvelope,
+  WorkflowInstance,
 } from "@/types/workflow-instance";
 
 // Repository interface for workflow instance management
@@ -22,7 +22,7 @@ export interface WorkflowRepository {
   // Node state management
   getNodeInstance(templateId: string): RuntimeEnvelope | null;
   updateNodeStatus(templateId: string, status: ExecutionStatus): void;
-  updateNodeContext(templateId: string, context: Record<string, any>): void;
+  updateNodeContext(templateId: string, context: Record<string, unknown>): void;
   updateNode(templateId: string, partial: Partial<RuntimeEnvelope>): void;
 
   // Scenario management (for development)

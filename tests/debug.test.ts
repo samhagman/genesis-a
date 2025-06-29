@@ -1,5 +1,5 @@
 // Debug test to isolate React import issue
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
 // Test individual imports to find the React issue
 describe("Debug React Import Issue", () => {

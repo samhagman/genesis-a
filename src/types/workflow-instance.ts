@@ -23,7 +23,7 @@ export interface RuntimeEnvelope {
   createdAt: Date; // When instance was created
   updatedAt: Date; // Last status update
   parentInstanceId?: string; // Parent instance for hierarchy traversal
-  ctx?: Record<string, any>; // Runtime context and results
+  ctx?: Record<string, unknown>; // Runtime context and results
 }
 
 // Goal-specific instance data
@@ -32,7 +32,7 @@ export interface GoalInstance extends RuntimeEnvelope {
   activatedAt?: Date; // When goal became active
   completedAt?: Date; // When goal was completed
   timeoutAt?: Date; // When goal will timeout
-  outputs?: Record<string, any>; // Goal output data
+  outputs?: Record<string, unknown>; // Goal output data
 }
 
 // Constraint-specific instance data
@@ -63,7 +63,7 @@ export interface PolicyInstance extends RuntimeEnvelope {
     timestamp: Date;
     conditionMet: boolean;
     actionTaken?: string;
-    result?: any;
+    result?: unknown;
   }>;
 }
 
@@ -74,9 +74,9 @@ export interface TaskInstance extends RuntimeEnvelope {
   startedAt?: Date; // When work began
   completedAt?: Date; // When task was completed
   dueAt?: Date; // Task deadline
-  result?: any; // Task execution result
-  inputs?: Record<string, any>; // Input data provided to task
-  outputs?: Record<string, any>; // Output data from task execution
+  result?: unknown; // Task execution result
+  inputs?: Record<string, unknown>; // Input data provided to task
+  outputs?: Record<string, unknown>; // Output data from task execution
   retryCount: number; // Number of retry attempts
   estimatedDuration?: number; // Estimated duration in minutes
 }
@@ -87,12 +87,12 @@ export interface FormInstance extends RuntimeEnvelope {
   validatedAt?: Date; // When form validation was completed
   fields: Record<string, FieldInstance>; // Field-level state
   validationErrors?: Record<string, string>; // Field validation errors
-  submissionResult?: any; // Result of form submission
+  submissionResult?: unknown; // Result of form submission
 }
 
 // Individual form field instance
 export interface FieldInstance {
-  value: any; // Current field value
+  value: unknown; // Current field value
   dirty: boolean; // Has been modified by user
   touched: boolean; // Has been focused/interacted with
   valid: boolean | null; // Validation status
@@ -118,7 +118,7 @@ export interface WorkflowInstance {
   templateToInstanceMap: Record<string, string>; // templateId -> instanceId
 
   // Runtime context and metadata
-  context: Record<string, any>; // Global workflow context
+  context: Record<string, unknown>; // Global workflow context
   metadata: {
     scenario?: string; // Development scenario name
     simulationSpeed?: number; // For development simulation

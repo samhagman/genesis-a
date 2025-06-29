@@ -7,12 +7,13 @@
  * Note: These tests will incur actual Cloudflare usage costs for AI and R2.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
-import { env, SELF } from "cloudflare:test";
+import { SELF, env } from "cloudflare:test";
+import { beforeEach, describe, expect, it } from "vitest";
 import { WorkflowEditingAgent } from "../../src/agents/workflowEditingAgent";
 import { WorkflowVersioningService } from "../../src/services/workflowVersioning";
 import type { WorkflowTemplateV2 } from "../../src/types/workflow-v2";
-import { TEST_USER_ID, getTestWorkflowId } from "../env.d.ts";
+import { TEST_USER_ID } from "../env.d.ts";
+import { getTestWorkflowId } from "../workers-setup";
 
 describe("Workflow Editing Integration Tests", () => {
   let testWorkflow: WorkflowTemplateV2;
@@ -21,7 +22,7 @@ describe("Workflow Editing Integration Tests", () => {
   beforeEach(() => {
     // Generate test-specific workflow ID for proper isolation
     testWorkflowId = getTestWorkflowId("integration");
-    
+
     // Create a test workflow for integration testing
     testWorkflow = {
       id: testWorkflowId,
@@ -116,8 +117,7 @@ describe("Workflow Editing Integration Tests", () => {
       expect(retrievedWorkflow).toEqual(testWorkflow);
 
       // Check version history
-      const history =
-        await versioningService.getVersionHistory(testWorkflowId);
+      const history = await versioningService.getVersionHistory(testWorkflowId);
       expect(history).toHaveLength(1);
       expect(history[0].editSummary).toBe("Integration test workflow");
     });
@@ -161,13 +161,17 @@ describe("Workflow Editing Integration Tests", () => {
 
         // Should have added a constraint
         if (result.workflow) {
-          expect(result.workflow.goals[0].constraints.length).toBeGreaterThan(0);
+          expect(result.workflow.goals[0].constraints.length).toBeGreaterThan(
+            0
+          );
         }
       } else if (response.status === 503) {
         // AI service unavailable (not authenticated)
         expect(result.success).toBe(false);
         expect(result.message).toBeDefined();
-        console.log("AI service unavailable - this is expected in test environment");
+        console.log(
+          "AI service unavailable - this is expected in test environment"
+        );
       } else {
         // Unexpected status
         throw new Error(`Unexpected response status: ${response.status}`);
@@ -189,20 +193,23 @@ describe("Workflow Editing Integration Tests", () => {
 
     it("should revert workflow version through API", async () => {
       // First, try to create a second version
-      const editResponse = await SELF.fetch("https://test.com/api/workflow/edit", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          workflowId: testWorkflowId,
-          userMessage: "Add a policy for data privacy compliance",
-          sessionId: "integration-test-session-2",
-        }),
-      });
+      const editResponse = await SELF.fetch(
+        "https://test.com/api/workflow/edit",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            workflowId: testWorkflowId,
+            userMessage: "Add a policy for data privacy compliance",
+            sessionId: "integration-test-session-2",
+          }),
+        }
+      );
 
       let expectedVersion = 2; // Default assumption
-      
+
       // Check if the edit succeeded or failed
       if (editResponse.status === 200) {
         // Edit succeeded - we should have version 2, revert will create version 3
@@ -210,7 +217,9 @@ describe("Workflow Editing Integration Tests", () => {
       } else if (editResponse.status === 503) {
         // Edit failed due to AI unavailable - we still have version 1, revert will create version 2
         expectedVersion = 2;
-        console.log("Edit failed due to AI unavailable - testing revert from version 1");
+        console.log(
+          "Edit failed due to AI unavailable - testing revert from version 1"
+        );
       }
 
       // Then revert to version 1
@@ -315,24 +324,28 @@ describe("Workflow Editing Integration Tests", () => {
       const responses = await Promise.all(editPromises);
 
       // All requests should complete (some may fail due to concurrency or AI unavailability)
-      responses.forEach((response) => {
+      for (const response of responses) {
         // Accept both success (200) and service unavailable (503) as valid responses
         expect([200, 503]).toContain(response.status);
-      });
+      }
 
       // Check how many edits actually succeeded
-      const successfulEdits = responses.filter(r => r.status === 200).length;
-      console.log(`${successfulEdits} out of ${responses.length} concurrent edits succeeded`);
+      const successfulEdits = responses.filter((r) => r.status === 200).length;
+      console.log(
+        `${successfulEdits} out of ${responses.length} concurrent edits succeeded`
+      );
 
       // Verify final state is consistent
       const historyResponse = await SELF.fetch(
         `https://test.com/api/workflow/${testWorkflowId}/versions`
       );
       const history = await historyResponse.json();
-      
+
       // We expect at least the initial version (1) plus any successful edits
       const expectedMinVersions = 1 + successfulEdits;
-      expect(history.versions.length).toBeGreaterThanOrEqual(expectedMinVersions);
+      expect(history.versions.length).toBeGreaterThanOrEqual(
+        expectedMinVersions
+      );
     }, 120000); // Extended timeout for concurrent operations
   });
 });

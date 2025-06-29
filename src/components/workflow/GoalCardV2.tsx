@@ -1,11 +1,11 @@
-import { useState } from "react";
-import type { GoalCardV2Props, SelectedItemV2 } from "@/types/workflow-v2";
-import { ConstraintList } from "./ConstraintList";
-import { PolicyList } from "./PolicyList";
-import { TaskList } from "./TaskList";
-import { FormList } from "./FormList";
 import { useGoalInstance } from "@/state/hooks";
 import type { ExecutionStatus } from "@/types/workflow-instance";
+import type { GoalCardV2Props, SelectedItemV2 } from "@/types/workflow-v2";
+import { useState } from "react";
+import { ConstraintList } from "./ConstraintList";
+import { FormList } from "./FormList";
+import { PolicyList } from "./PolicyList";
+import { TaskList } from "./TaskList";
 
 export function GoalCardV2({
   goal,

@@ -166,7 +166,7 @@ export class WorkflowVersioningService {
         throw error;
       }
 
-      console.error(`Error saving workflow version:`, error);
+      console.error("Error saving workflow version:", error);
       return {
         success: false,
         errorMessage: error instanceof Error ? error.message : "Unknown error",
@@ -520,7 +520,7 @@ export class WorkflowVersioningService {
 
       return currentNormalized === newNormalized;
     } catch (error) {
-      console.warn(`Error checking for duplicate workflow:`, error);
+      console.warn("Error checking for duplicate workflow:", error);
       return false;
     }
   }
@@ -572,7 +572,7 @@ export function createVersioningServiceFromEnv(env: {
 export function generateVersionSummary(
   oldWorkflow: WorkflowTemplateV2 | undefined,
   newWorkflow: WorkflowTemplateV2,
-  toolCalls?: Array<{ tool: string; params: any }>
+  toolCalls?: Array<{ tool: string; params: unknown }>
 ): string {
   if (!oldWorkflow) {
     return `Initial version: Created workflow "${newWorkflow.name}" with ${newWorkflow.goals.length} goals`;

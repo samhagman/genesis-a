@@ -5,24 +5,24 @@
  * Designed for optimal performance with minimal re-renders.
  */
 
-import { useMemo } from "react";
 import type {
-  WorkflowInstance,
-  RuntimeEnvelope,
-  ExecutionStatus,
-  GoalInstance,
   ConstraintInstance,
-  PolicyInstance,
-  TaskInstance,
+  ExecutionStatus,
   FormInstance,
+  GoalInstance,
+  PolicyInstance,
+  RuntimeEnvelope,
+  TaskInstance,
+  WorkflowInstance,
 } from "@/types/workflow-instance";
 import {
-  isGoalInstance,
   isConstraintInstance,
+  isFormInstance,
+  isGoalInstance,
   isPolicyInstance,
   isTaskInstance,
-  isFormInstance,
 } from "@/types/workflow-instance";
+import { useMemo } from "react";
 import { useWorkflowStore } from "./workflowStore";
 
 // Hook to get the current active workflow instance

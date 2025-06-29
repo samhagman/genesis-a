@@ -5,8 +5,8 @@
  * Allows testing various execution states without implementing actual execution logic.
  */
 
-import { useState } from "react";
 import { useWorkflowScenarios, useWorkflowStats } from "@/state/hooks";
+import { useState } from "react";
 
 interface ScenarioSwitcherProps {
   className?: string;
@@ -71,6 +71,7 @@ export function ScenarioSwitcher({ className = "" }: ScenarioSwitcherProps) {
     <div className={`relative ${className}`}>
       {/* Current Scenario Display + Dropdown Toggle */}
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 px-3 py-2 bg-neutral-100 dark:bg-neutral-800 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors border border-neutral-200 dark:border-neutral-700"
       >
@@ -87,6 +88,7 @@ export function ScenarioSwitcher({ className = "" }: ScenarioSwitcherProps) {
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
+          aria-label="Toggle dropdown"
         >
           <path
             strokeLinecap="round"
@@ -121,6 +123,7 @@ export function ScenarioSwitcher({ className = "" }: ScenarioSwitcherProps) {
           <div className="max-h-64 overflow-y-auto">
             {scenarios.map((scenario) => (
               <button
+                type="button"
                 key={scenario.name}
                 onClick={() => {
                   loadScenario(scenario);

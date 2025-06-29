@@ -12,11 +12,11 @@
  */
 
 import { createWorkflowEditingAgent } from "../agents/workflowEditingAgent";
+import type { WorkflowEditRequest } from "../agents/workflowEditingAgent";
 import {
   createVersioningServiceFromEnv,
   generateVersionSummary,
 } from "../services/workflowVersioning";
-import type { WorkflowEditRequest } from "../agents/workflowEditingAgent";
 
 // ============================================================================
 // Types and Interfaces
@@ -26,7 +26,7 @@ export interface WorkflowEditingEnv {
   AI: Ai; // Cloudflare Workers AI binding
   WORKFLOW_VERSIONS: R2Bucket; // R2 bucket for version control
   OPENAI_API_KEY?: string; // Existing binding
-  Chat?: any; // Existing durable object
+  Chat?: DurableObjectNamespace; // Existing durable object
 }
 
 export interface EditRequestBody {
@@ -80,7 +80,7 @@ export class WorkflowEditingAPI {
           pathSegments.length >= 5 &&
           request.method === "GET"
         ) {
-          const version = parseInt(pathSegments[4]);
+          const version = Number.parseInt(pathSegments[4]);
           return await this.handleGetVersion(workflowId, version);
         }
 
@@ -89,7 +89,7 @@ export class WorkflowEditingAPI {
           pathSegments.length >= 5 &&
           request.method === "POST"
         ) {
-          const version = parseInt(pathSegments[4]);
+          const version = Number.parseInt(pathSegments[4]);
           return await this.handleRevert(request, workflowId, version);
         }
       }
@@ -195,19 +195,18 @@ export class WorkflowEditingAPI {
           toolCalls: editResponse.toolCalls,
           auditLog: agent.getAuditLog(),
         });
-      } else {
-        // Edit failed - likely due to upstream service failure (AI, validation, etc.)
-        return Response.json(
-          {
-            success: false,
-            message: editResponse.message,
-            errorDetails: editResponse.errorDetails,
-            validationErrors: editResponse.validationErrors,
-            auditLog: agent.getAuditLog(),
-          },
-          { status: 503 } // Service Unavailable - upstream dependency failed
-        );
       }
+      // Edit failed - likely due to upstream service failure (AI, validation, etc.)
+      return Response.json(
+        {
+          success: false,
+          message: editResponse.message,
+          errorDetails: editResponse.errorDetails,
+          validationErrors: editResponse.validationErrors,
+          auditLog: agent.getAuditLog(),
+        },
+        { status: 503 } // Service Unavailable - upstream dependency failed
+      );
     } catch (error) {
       console.error("Edit request error:", error);
       return this.errorResponse(
@@ -236,10 +235,10 @@ export class WorkflowEditingAPI {
 
       // Parse query parameters
       const limit = searchParams.get("limit")
-        ? parseInt(searchParams.get("limit")!)
+        ? Number.parseInt(searchParams.get("limit")!)
         : undefined;
       const offset = searchParams.get("offset")
-        ? parseInt(searchParams.get("offset")!)
+        ? Number.parseInt(searchParams.get("offset")!)
         : undefined;
       const includeContent = searchParams.get("includeContent") === "true";
 
@@ -278,7 +277,7 @@ export class WorkflowEditingAPI {
     version: number
   ): Promise<Response> {
     try {
-      if (isNaN(version) || version < 1) {
+      if (Number.isNaN(version) || version < 1) {
         return this.errorResponse("Invalid version number", 400);
       }
 
@@ -330,7 +329,7 @@ export class WorkflowEditingAPI {
     version: number
   ): Promise<Response> {
     try {
-      if (isNaN(version) || version < 1) {
+      if (Number.isNaN(version) || version < 1) {
         return this.errorResponse("Invalid version number", 400);
       }
 
@@ -379,16 +378,15 @@ export class WorkflowEditingAPI {
           workflow: revertedWorkflow,
           message: `Successfully reverted workflow to version ${version}`,
         });
-      } else {
-        return Response.json(
-          {
-            success: false,
-            message: "Failed to revert workflow",
-            errorDetails: revertResult.errorMessage,
-          },
-          { status: 400 }
-        );
       }
+      return Response.json(
+        {
+          success: false,
+          message: "Failed to revert workflow",
+          errorDetails: revertResult.errorMessage,
+        },
+        { status: 400 }
+      );
     } catch (error) {
       console.error("Revert error:", error);
       return this.errorResponse(
@@ -461,16 +459,17 @@ export async function routeWorkflowEditingAPI(
  * Validate that required environment bindings are available
  */
 export function validateWorkflowEditingEnv(
-  env: any
+  env: unknown
 ): env is WorkflowEditingEnv {
-  if (!env.AI) {
+  const typedEnv = env as Record<string, unknown>;
+  if (!typedEnv.AI) {
     console.error(
       "AI binding not found - ensure AI is configured in wrangler.jsonc"
     );
     return false;
   }
 
-  if (!env.WORKFLOW_VERSIONS) {
+  if (!typedEnv.WORKFLOW_VERSIONS) {
     console.error(
       "WORKFLOW_VERSIONS R2 binding not found - ensure R2 bucket is configured in wrangler.jsonc"
     );

@@ -1,21 +1,20 @@
-import { describe, it, expect, vi } from "vitest";
+import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
 import {
+  type SafeWorkflowResult,
   WorkflowError,
-  WorkflowValidationError,
   WorkflowLoadError,
   WorkflowParseError,
-  safeLoadWorkflow,
-  safeLoadWorkflowFromFile,
-  safeExtractGoalData,
-  safeExtractWorkflowMetadata,
+  WorkflowValidationError,
+  diagnoseWorkflowIssues,
   formatWorkflowError,
   logWorkflowError,
   retryWorkflowLoad,
+  safeExtractGoalData,
+  safeExtractWorkflowMetadata,
+  safeLoadWorkflow,
   sanitizeWorkflowForLogging,
-  diagnoseWorkflowIssues,
-  type SafeWorkflowResult,
 } from "@/utils/error-handling";
-import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
+import { describe, expect, it, vi } from "vitest";
 
 // Note: For testing file not found errors, we'll use a non-existent path
 // The actual import() will fail naturally, testing our error handling
@@ -173,7 +172,7 @@ describe("Error Handling Utilities", () => {
 
     it("should handle unexpected errors", () => {
       // Circular object will fail validation, not loading
-      const circularObj: any = {};
+      const circularObj: Record<string, unknown> = {};
       circularObj.self = circularObj;
 
       const result = safeLoadWorkflow(circularObj);
@@ -185,10 +184,7 @@ describe("Error Handling Utilities", () => {
     });
   });
 
-  describe("safeLoadWorkflowFromFile", () => {
-    // Note: Testing file loading would require actual files or complex mocking
-    // This would be covered by integration tests that use real workflow files
-  });
+  // Note: safeLoadWorkflowFromFile testing is covered by integration tests with real workflow files
 
   describe("safeExtractGoalData", () => {
     it("should extract valid goal data", () => {
@@ -414,10 +410,10 @@ describe("Error Handling Utilities", () => {
       const loadError = new WorkflowLoadError("Load failed");
       const basicError = new WorkflowError("Basic error", "BASIC");
 
-      logWorkflowError(validationError, mockLogger as any);
-      logWorkflowError(parseError, mockLogger as any);
-      logWorkflowError(loadError, mockLogger as any);
-      logWorkflowError(basicError, mockLogger as any);
+      logWorkflowError(validationError, mockLogger as Console);
+      logWorkflowError(parseError, mockLogger as Console);
+      logWorkflowError(loadError, mockLogger as Console);
+      logWorkflowError(basicError, mockLogger as Console);
 
       expect(mockLogger.warn).toHaveBeenCalledTimes(1);
       expect(mockLogger.error).toHaveBeenCalledTimes(3);
@@ -433,7 +429,7 @@ describe("Error Handling Utilities", () => {
 
       const loadError = new WorkflowLoadError("Load failed", originalError);
 
-      logWorkflowError(loadError, mockLogger as any);
+      logWorkflowError(loadError, mockLogger as Console);
 
       expect(mockLogger.error).toHaveBeenCalledTimes(2);
       expect(mockLogger.error).toHaveBeenCalledWith(

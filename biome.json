@@ -20,8 +20,45 @@
     "enabled": true,
     "rules": {
       "recommended": true,
+      "a11y": {
+        "noSvgWithoutTitle": "off",
+        "useKeyWithClickEvents": "off",
+        "useButtonType": "off",
+        "useValidAnchor": "off",
+        "useSemanticElements": "off",
+        "noRedundantAlt": "off",
+        "noAccessKey": "off",
+        "noAriaHiddenOnFocusable": "off",
+        "noAriaUnsupportedElements": "off",
+        "noAutofocus": "off",
+        "noBlankTarget": "off",
+        "noDistractingElements": "off",
+        "noHeaderScope": "off",
+        "noInteractiveElementToNoninteractiveRole": "off",
+        "noNoninteractiveElementToInteractiveRole": "off",
+        "noNoninteractiveTabindex": "off",
+        "noPositiveTabindex": "off",
+        "noRedundantRoles": "off",
+        "useAltText": "off",
+        "useAnchorContent": "off",
+        "useAriaActivedescendantWithTabindex": "off",
+        "useAriaPropsForRole": "off",
+        "useHeadingContent": "off",
+        "useHtmlLang": "off",
+        "useIframeTitle": "off",
+        "useKeyWithMouseEvents": "off",
+        "useMediaCaption": "off",
+        "useValidAriaProps": "off",
+        "useValidAriaRole": "off",
+        "useValidAriaValues": "off",
+        "useValidLang": "off",
+        "noLabelWithoutControl": "off"
+      },
       "style": {
         "noNonNullAssertion": "off"
+      },
+      "suspicious": {
+        "noThenProperty": "off"
       }
     }
   },

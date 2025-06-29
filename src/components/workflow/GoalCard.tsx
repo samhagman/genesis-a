@@ -1,7 +1,7 @@
-import type { GoalCardProps } from "@/types/components";
 import { Card } from "@/components/card/Card";
+import type { GoalCardProps } from "@/types/components";
+import { getGoalBorderStyling, getStatusConfig } from "@/utils/status";
 import { SubtaskList } from "./SubtaskList";
-import { getStatusConfig, getGoalBorderStyling } from "@/utils/status";
 
 export function GoalCard({
   goal,
@@ -25,7 +25,6 @@ export function GoalCard({
       onClick={() => onGoalSelect(goal.goalId)}
       onKeyDown={handleKeyDown}
       tabIndex={0}
-      // biome-ignore lint/a11y/useSemanticElements: GoalCard contains interactive SubtaskList buttons, so it cannot be a button itself to avoid nested buttons
       role="button"
       aria-pressed={isSelected}
     >

@@ -5,15 +5,15 @@
  * Each scenario represents a different state of workflow execution.
  */
 
-import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
 import type {
-  ExecutionScenario,
-  GoalInstance,
   ConstraintInstance,
+  ExecutionScenario,
+  FormInstance,
+  GoalInstance,
   PolicyInstance,
   TaskInstance,
-  FormInstance,
 } from "@/types/workflow-instance";
+import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
 import { createWorkflowInstance } from "./instanceFactory";
 
 // Create a fresh start scenario
@@ -189,14 +189,17 @@ export function createFormPartialScenario(
 
     // Fill some fields
     const fieldKeys = Object.keys(form.fields);
-    fieldKeys.slice(0, Math.ceil(fieldKeys.length / 2)).forEach((fieldKey) => {
+    for (const fieldKey of fieldKeys.slice(
+      0,
+      Math.ceil(fieldKeys.length / 2)
+    )) {
       const field = form.fields[fieldKey];
       field.value = `Sample value ${index + 1}`;
       field.dirty = true;
       field.touched = true;
       field.valid = true;
       field.updatedAt = new Date(Date.now() - index * 10 * 60000);
-    });
+    }
 
     form.ctx = {
       lastInteraction: new Date(Date.now() - index * 10 * 60000),
@@ -224,7 +227,7 @@ export function createTimeoutScenario(
     template.goals.some((g) => g.id === node.templateId && g.timeout_minutes)
   ) as GoalInstance[];
 
-  goalInstances.forEach((goal) => {
+  for (const goal of goalInstances) {
     goal.status = "ACTIVE";
     goal.progressPercent = 75; // Close to completion but running out of time
     goal.activatedAt = new Date(Date.now() - 25 * 60000); // Started 25 minutes ago
@@ -234,7 +237,7 @@ export function createTimeoutScenario(
       urgencyLevel: "high",
       estimatedCompletion: new Date(Date.now() + 8 * 60000), // Estimated to finish late
     };
-  });
+  }
 
   instance.metadata.scenario = "timeout_scenario";
 

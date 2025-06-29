@@ -1,7 +1,7 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ConstraintList } from "@/components/workflow/ConstraintList";
 import type { Constraint } from "@/types/workflow-v2";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockConstraints: Constraint[] = [
   {

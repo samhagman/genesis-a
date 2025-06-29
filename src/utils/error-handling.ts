@@ -3,11 +3,11 @@
  * Provides comprehensive error handling for malformed workflow data
  */
 
-import {
-  validateWorkflowV2WithDetails,
-  type ValidationResult,
-} from "./schema-validation";
 import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
+import {
+  type ValidationResult,
+  validateWorkflowV2WithDetails,
+} from "./schema-validation";
 
 // Error types for workflow processing
 export class WorkflowError extends Error {
@@ -329,8 +329,8 @@ export function logWorkflowError(
  */
 export async function retryWorkflowLoad(
   loadFunction: () => Promise<SafeWorkflowResult<WorkflowTemplateV2>>,
-  maxRetries: number = 2,
-  backoffMs: number = 1000
+  maxRetries = 2,
+  backoffMs = 1000
 ): Promise<SafeWorkflowResult<WorkflowTemplateV2>> {
   let lastResult: SafeWorkflowResult<WorkflowTemplateV2>;
 
@@ -431,23 +431,23 @@ export function diagnoseWorkflowIssues(workflow: unknown): {
   const validationResult = validateWorkflowV2WithDetails(workflow);
 
   // Convert validation errors to issues
-  validationResult.errors.forEach((error) => {
+  for (const error of validationResult.errors) {
     issues.push({
       severity: "error",
       category: getErrorCategory(error.code),
       message: error.message,
       path: error.path,
     });
-  });
+  }
 
-  validationResult.warnings.forEach((warning) => {
+  for (const warning of validationResult.warnings) {
     issues.push({
       severity: "warning",
       category: getErrorCategory(warning.code),
       message: warning.message,
       path: warning.path,
     });
-  });
+  }
 
   // Generate suggestions based on common issues
   if (issues.some((i) => i.category === "structure")) {

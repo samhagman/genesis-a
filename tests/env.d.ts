@@ -45,7 +45,11 @@ export interface MockR2Object {
 
 export interface MockR2Bucket {
   get(key: string): Promise<MockR2Object | null>;
-  put(key: string, content: string | Uint8Array, options?: any): Promise<void>;
+  put(
+    key: string,
+    content: string | Uint8Array,
+    options?: Record<string, unknown>
+  ): Promise<void>;
   delete(key: string): Promise<void>;
   list(options?: { prefix?: string }): Promise<{
     objects: Array<{
@@ -62,13 +66,6 @@ export const TEST_WORKFLOW_ID = "test-workflow-123";
 export const TEST_USER_ID = "test-user";
 export const TEST_SESSION_ID = "test-session-456";
 
-// Helper functions for test isolation
-export function getTestWorkflowId(baseId: string = "workflow"): string {
-  const testId = globalThis.__TEST_ID__ || "fallback";
-  return `test-${testId}-${baseId}`;
-}
-
-export function getTestKeyPrefix(): string {
-  const testId = globalThis.__TEST_ID__ || "fallback";
-  return `test-${testId}/`;
-}
+// Helper functions for test isolation (implemented in workers-setup.ts)
+export declare function getTestWorkflowId(baseId?: string): string;
+export declare function getTestKeyPrefix(): string;

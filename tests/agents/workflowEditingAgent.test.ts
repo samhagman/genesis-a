@@ -4,15 +4,15 @@
  * These are unit tests - for integration tests with real AI, see workflowEditingAgent.integration.test.ts
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkflowEditingAgent } from "../../src/agents/workflowEditingAgent";
 import type {
-  WorkflowTemplateV2,
   WorkflowEditRequest,
+  WorkflowTemplateV2,
 } from "../../src/agents/workflowEditingAgent";
 
 describe("WorkflowEditingAgent", () => {
-  let mockAi: any;
+  let mockAi: Ai;
   let agent: WorkflowEditingAgent;
   let testWorkflow: WorkflowTemplateV2;
 

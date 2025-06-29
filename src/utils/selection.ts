@@ -1,5 +1,5 @@
-import type { WorkflowTemplate } from "@/types/workflow";
 import type { SelectedItem } from "@/types/components";
+import type { WorkflowTemplate } from "@/types/workflow";
 
 export function findSelectedItem(
   workflow: WorkflowTemplate,

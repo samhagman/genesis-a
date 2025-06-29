@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { findSelectedItem, getItemBreadcrumb } from "@/utils/selection";
 import type { WorkflowTemplate } from "@/types/workflow";
+import { findSelectedItem, getItemBreadcrumb } from "@/utils/selection";
+import { describe, expect, it } from "vitest";
 
 describe("Selection Utils", () => {
   const mockWorkflow: WorkflowTemplate = {

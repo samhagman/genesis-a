@@ -38,7 +38,7 @@ export interface Constraint {
     | "content_review"
     | "block_until_met"
     | "block_duplicate";
-  value?: any;
+  value?: unknown;
   unit?: string;
   condition?: string;
   required_fields?: string[];
@@ -72,14 +72,14 @@ export interface PolicyCondition {
   type?: string;
   field?: string;
   operator?: string;
-  value?: any;
+  value?: unknown;
   all_of?: PolicyCondition[];
   any_of?: PolicyCondition[];
 }
 
 export interface PolicyAction {
   action: string;
-  params: Record<string, any>;
+  params: Record<string, unknown>;
 }
 
 /**
@@ -126,7 +126,7 @@ export interface Task {
   sla_hours?: number;
   review_materials?: string[];
   decision_options?: string[];
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   permissions?: string[];
 }
 
@@ -153,7 +153,7 @@ export interface Form {
   template?: string;
   initial_prompt?: string;
   context_provided?: string[];
-  output_format?: Record<string, any>;
+  output_format?: Record<string, unknown>;
   fields?: FormField[];
   pre_filled?: boolean;
   sections?: FormSection[];
@@ -193,7 +193,7 @@ export interface FormField {
   options?: string[];
   min?: number;
   max?: number;
-  schema?: Record<string, any>;
+  schema?: Record<string, unknown>;
   items?: {
     type: string;
     enum?: string[];
@@ -236,7 +236,7 @@ export interface Goal {
 export interface WorkflowTrigger {
   type: "webhook" | "schedule" | "manual" | "event";
   event?: string;
-  conditions?: Record<string, any>;
+  conditions?: Record<string, unknown>;
 }
 
 /**
@@ -261,7 +261,7 @@ export interface GlobalSettings {
     normal: string[];
     reports: string[];
   };
-  integrations: Record<string, any>;
+  integrations: Record<string, unknown>;
 }
 
 /**
@@ -368,13 +368,13 @@ export interface TaskInstanceStatus {
   startedAt?: string;
   completedAt?: string;
   completedBy?: string;
-  result?: any;
+  result?: unknown;
 }
 
 export interface FormInstanceStatus {
   formId: string;
   status: FormStatus;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
   submittedAt?: string;
   validatedAt?: string;
 }
@@ -428,44 +428,85 @@ export interface GoalCardV2Props {
 /**
  * Type guards for runtime type checking
  */
-export function isWorkflowV2(workflow: any): workflow is WorkflowTemplateV2 {
+export function isWorkflowV2(
+  workflow: unknown
+): workflow is WorkflowTemplateV2 {
+  if (!workflow || typeof workflow !== "object") {
+    return false;
+  }
+
+  const w = workflow as Record<string, unknown>;
   return (
-    workflow &&
-    typeof workflow.objective === "string" &&
-    workflow.goals &&
-    Array.isArray(workflow.goals) &&
-    workflow.goals.every(
-      (goal: any) =>
-        goal.constraints && goal.policies && goal.tasks && goal.forms
-    )
+    typeof w.objective === "string" &&
+    !!w.goals &&
+    Array.isArray(w.goals) &&
+    w.goals.every((goal: unknown): boolean => {
+      if (!goal || typeof goal !== "object") {
+        return false;
+      }
+      const g = goal as Record<string, unknown>;
+      return (
+        Array.isArray(g.constraints) &&
+        Array.isArray(g.policies) &&
+        Array.isArray(g.tasks) &&
+        Array.isArray(g.forms)
+      );
+    })
   );
 }
 
-export function isGoal(item: any): item is Goal {
-  return item && item.constraints && item.policies && item.tasks && item.forms;
-}
-
-export function isConstraint(item: any): item is Constraint {
+export function isGoal(item: unknown): item is Goal {
+  if (!item || typeof item !== "object") {
+    return false;
+  }
+  const g = item as Record<string, unknown>;
   return (
-    item &&
-    typeof item.type === "string" &&
-    typeof item.enforcement === "string"
+    Array.isArray(g.constraints) &&
+    Array.isArray(g.policies) &&
+    Array.isArray(g.tasks) &&
+    Array.isArray(g.forms)
   );
 }
 
-export function isPolicy(item: any): item is Policy {
-  return item && item.if && item.then;
+export function isConstraint(item: unknown): item is Constraint {
+  if (!item || typeof item !== "object") {
+    return false;
+  }
+  const c = item as Record<string, unknown>;
+  return typeof c.type === "string" && typeof c.enforcement === "string";
 }
 
-export function isTask(item: any): item is Task {
-  return item && item.assignee && typeof item.assignee.type === "string";
-}
-
-export function isForm(item: any): item is Form {
+export function isPolicy(item: unknown): item is Policy {
+  if (!item || typeof item !== "object") {
+    return false;
+  }
+  const p = item as Record<string, unknown>;
   return (
-    item &&
-    typeof item.type === "string" &&
-    ["structured", "conversational", "automated"].includes(item.type)
+    !!p.if && typeof p.if === "object" && !!p.then && typeof p.then === "object"
+  );
+}
+
+export function isTask(item: unknown): item is Task {
+  if (!item || typeof item !== "object") {
+    return false;
+  }
+  const t = item as Record<string, unknown>;
+  return (
+    !!t.assignee &&
+    typeof t.assignee === "object" &&
+    t.assignee !== null &&
+    typeof (t.assignee as Record<string, unknown>).type === "string"
+  );
+}
+
+export function isForm(item: unknown): item is Form {
+  if (!item || typeof item !== "object") {
+    return false;
+  }
+  const f = item as Record<string, unknown>;
+  return (
+    typeof f.type === "string" &&
+    ["structured", "conversational", "automated"].includes(f.type)
   );
 }
 

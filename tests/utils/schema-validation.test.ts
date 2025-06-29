@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest";
-import {
-  validateWorkflowV2,
-  isValidWorkflowV2,
-  validateWorkflowV2WithDetails,
-  type ValidationResult,
-} from "@/utils/schema-validation";
 import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
+import {
+  type ValidationResult,
+  isValidWorkflowV2,
+  validateWorkflowV2,
+  validateWorkflowV2WithDetails,
+} from "@/utils/schema-validation";
+import { describe, expect, it } from "vitest";
 
 describe("Schema Validation", () => {
   const validWorkflow: WorkflowTemplateV2 = {

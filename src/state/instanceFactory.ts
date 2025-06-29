@@ -5,17 +5,17 @@
  * Handles the conversion from static templates to dynamic runtime state.
  */
 
-import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
 import type {
-  WorkflowInstance,
-  RuntimeEnvelope,
-  GoalInstance,
   ConstraintInstance,
-  PolicyInstance,
-  TaskInstance,
-  FormInstance,
   FieldInstance,
+  FormInstance,
+  GoalInstance,
+  PolicyInstance,
+  RuntimeEnvelope,
+  TaskInstance,
+  WorkflowInstance,
 } from "@/types/workflow-instance";
+import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
 
 // Generate unique IDs for instances
 function generateInstanceId(): string {
@@ -111,7 +111,7 @@ export function createFormInstance(
 }
 
 // Create a field instance for forms
-export function createFieldInstance(value: any = null): FieldInstance {
+export function createFieldInstance(value: unknown = null): FieldInstance {
   return {
     value,
     dirty: false,
@@ -220,7 +220,7 @@ function applyScenarioState(
       // All nodes remain NOT_STARTED (default)
       break;
 
-    case "in_progress":
+    case "in_progress": {
       // First goal active, some constraints satisfied, some tasks assigned
       const firstGoal = nodes.find((n) =>
         template.goals.some((g) => g.id === n.templateId)
@@ -231,24 +231,23 @@ function applyScenarioState(
       }
 
       // Some constraints satisfied
-      nodes
+      for (const constraint of nodes
         .filter((n) => n.templateId.includes("constraint"))
-        .slice(0, 2)
-        .forEach((constraint) => {
-          constraint.status = "COMPLETED";
-          (constraint as ConstraintInstance).satisfied = true;
-        });
+        .slice(0, 2)) {
+        constraint.status = "COMPLETED";
+        (constraint as ConstraintInstance).satisfied = true;
+      }
 
       // Some tasks assigned
-      nodes
+      for (const task of nodes
         .filter((n) => n.templateId.includes("task"))
-        .slice(0, 1)
-        .forEach((task) => {
-          task.status = "ACTIVE";
-          (task as TaskInstance).assignedAt = new Date();
-        });
+        .slice(0, 1)) {
+        task.status = "ACTIVE";
+        (task as TaskInstance).assignedAt = new Date();
+      }
 
       break;
+    }
 
     case "happy_path":
       // Most nodes completed successfully

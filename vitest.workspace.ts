@@ -1,6 +1,11 @@
 import path from "node:path";
-import { defineWorkspace } from "vitest/config";
 import { defineWorkersConfig } from "@cloudflare/vitest-pool-workers/config";
+import { defineWorkspace } from "vitest/config";
+
+// Fix Node EventEmitter memory leak warnings from tinypool workers
+if (typeof process !== "undefined" && process.setMaxListeners) {
+  process.setMaxListeners(0); // Unlimited listeners for main process
+}
 
 export default defineWorkspace([
   // Component tests with jsdom
@@ -11,6 +16,14 @@ export default defineWorkspace([
       environment: "jsdom",
       setupFiles: ["./tests/setup.ts"],
       disableConsoleIntercept: true,
+      // Limit workers to prevent socket listener accumulation
+      pool: "threads",
+      poolOptions: {
+        threads: {
+          minThreads: 1,
+          maxThreads: 4,
+        },
+      },
     },
     resolve: {
       alias: {
@@ -22,16 +35,16 @@ export default defineWorkspace([
   defineWorkersConfig({
     test: {
       name: "workers",
-      include: [
-        "tests/**/*.test.ts",
-        "tests/**/*.integration.test.ts"
-      ],
+      include: ["tests/**/*.test.ts", "tests/**/*.integration.test.ts"],
       exclude: ["tests/components/**"],
       poolOptions: {
         workers: {
           wrangler: { configPath: "./wrangler.jsonc" },
           // Enable isolated storage for proper test isolation
           isolatedStorage: true,
+          // Limit workers to prevent socket listener accumulation
+          minWorkers: 1,
+          maxWorkers: 4,
         },
       },
       // Setup file for all worker tests

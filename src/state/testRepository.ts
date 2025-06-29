@@ -6,10 +6,10 @@
  */
 
 import type {
-  WorkflowInstance,
-  RuntimeEnvelope,
-  ExecutionStatus,
   ExecutionScenario,
+  ExecutionStatus,
+  RuntimeEnvelope,
+  WorkflowInstance,
 } from "@/types/workflow-instance";
 import type { WorkflowRepository } from "./workflowRepository";
 
@@ -47,7 +47,10 @@ export class TestWorkflowRepository implements WorkflowRepository {
     this.updateNode(templateId, { status });
   }
 
-  updateNodeContext(templateId: string, context: Record<string, any>): void {
+  updateNodeContext(
+    templateId: string,
+    context: Record<string, unknown>
+  ): void {
     this.updateNode(templateId, { ctx: context });
   }
 

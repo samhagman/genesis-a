@@ -259,7 +259,9 @@ function validateTriggers(
 
     if (
       typeof t.type === "string" &&
-      !VALID_TRIGGER_TYPES.includes(t.type as any)
+      !VALID_TRIGGER_TYPES.includes(
+        t.type as (typeof VALID_TRIGGER_TYPES)[number]
+      )
     ) {
       errors.push({
         path: `${triggerPath}.type`,
@@ -392,7 +394,9 @@ function validateConstraint(
   // Enum validation
   if (
     typeof c.type === "string" &&
-    !VALID_CONSTRAINT_TYPES.includes(c.type as any)
+    !VALID_CONSTRAINT_TYPES.includes(
+      c.type as (typeof VALID_CONSTRAINT_TYPES)[number]
+    )
   ) {
     errors.push({
       path: `${path}.type`,
@@ -403,7 +407,9 @@ function validateConstraint(
 
   if (
     typeof c.enforcement === "string" &&
-    !VALID_ENFORCEMENT_LEVELS.includes(c.enforcement as any)
+    !VALID_ENFORCEMENT_LEVELS.includes(
+      c.enforcement as (typeof VALID_ENFORCEMENT_LEVELS)[number]
+    )
   ) {
     errors.push({
       path: `${path}.enforcement`,
@@ -483,7 +489,9 @@ function validateTask(
 
     if (
       typeof assignee.type === "string" &&
-      !VALID_ASSIGNEE_TYPES.includes(assignee.type as any)
+      !VALID_ASSIGNEE_TYPES.includes(
+        assignee.type as (typeof VALID_ASSIGNEE_TYPES)[number]
+      )
     ) {
       errors.push({
         path: `${path}.assignee.type`,
@@ -545,7 +553,10 @@ function validateForm(
   validateRequiredField(f, "type", "string", path, errors);
 
   // Enum validation
-  if (typeof f.type === "string" && !VALID_FORM_TYPES.includes(f.type as any)) {
+  if (
+    typeof f.type === "string" &&
+    !VALID_FORM_TYPES.includes(f.type as (typeof VALID_FORM_TYPES)[number])
+  ) {
     errors.push({
       path: `${path}.type`,
       message: `Invalid form type. Must be one of: ${VALID_FORM_TYPES.join(", ")}`,
@@ -613,22 +624,32 @@ function validateRequiredField(
 function validateField(
   obj: Record<string, unknown>,
   field: string,
-  expectedType: string,
+  expectedType: "string" | "number" | "boolean" | "object",
   path: string,
   errors: ValidationError[]
 ): void {
-  if (obj[field] !== undefined && typeof obj[field] !== expectedType) {
-    errors.push({
-      path: `${path}.${field}`,
-      message: `Field '${field}' must be of type ${expectedType}`,
-      code: "INVALID_TYPE",
-    });
+  const value = obj[field];
+  if (value !== undefined) {
+    const actualType = typeof value;
+    const isValid =
+      (expectedType === "string" && actualType === "string") ||
+      (expectedType === "number" && actualType === "number") ||
+      (expectedType === "boolean" && actualType === "boolean") ||
+      (expectedType === "object" && actualType === "object");
+
+    if (!isValid) {
+      errors.push({
+        path: `${path}.${field}`,
+        message: `Field '${field}' must be of type ${expectedType}`,
+        code: "INVALID_TYPE",
+      });
+    }
   }
 }
 
 function isValidDateString(dateStr: string): boolean {
   const date = new Date(dateStr);
-  return !isNaN(date.getTime()) && dateStr.includes("T"); // Basic ISO check
+  return !Number.isNaN(date.getTime()) && dateStr.includes("T"); // Basic ISO check
 }
 
 /**

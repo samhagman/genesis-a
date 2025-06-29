@@ -5,8 +5,8 @@
  * safe, accurate, and effective workflow editing through natural language.
  */
 
+import type { Goal, WorkflowTemplateV2 } from "../types/workflow-v2";
 import { WORKFLOW_EDITING_TOOL_DEFINITIONS } from "./workflowEditingTools";
-import type { WorkflowTemplateV2, Goal } from "../types/workflow-v2";
 
 // ============================================================================
 // Core System Prompts

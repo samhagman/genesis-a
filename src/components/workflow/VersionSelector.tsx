@@ -1,13 +1,13 @@
-import { useState, useEffect } from "react";
 import { Button } from "@/components/button/Button";
 import { Loader } from "@/components/loader/Loader";
+import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
 import {
-  Clock,
-  GitBranch,
   ArrowCounterClockwise,
   Check,
+  Clock,
+  GitBranch,
 } from "@phosphor-icons/react";
-import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
+import { useEffect, useState } from "react";
 
 export interface WorkflowVersion {
   version: number;
@@ -196,7 +196,7 @@ export function VersionSelector({
               onChange={(e) => {
                 const value = e.target.value;
                 if (value && value !== "") {
-                  handleVersionSelect(parseInt(value, 10));
+                  handleVersionSelect(Number.parseInt(value, 10));
                 }
               }}
               disabled={loading || reverting}

@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
 import { InspectorPanel } from "@/components/inspector/InspectorPanel";
 import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 const mockWorkflow: WorkflowTemplateV2 = {
   id: "test-workflow",

@@ -1,12 +1,12 @@
+import { VersionSelector } from "@/components/workflow/VersionSelector";
 import type {
-  WorkflowTemplateV2,
-  Goal,
   Constraint,
+  Form,
+  Goal,
   Policy,
   Task,
-  Form,
+  WorkflowTemplateV2,
 } from "@/types/workflow-v2";
-import { VersionSelector } from "@/components/workflow/VersionSelector";
 
 export interface InspectorPanelProps {
   workflow: WorkflowTemplateV2 | null;
@@ -334,9 +334,9 @@ function TaskDetailView({ task }: { task: Task }) {
                   Capabilities:
                 </span>
                 <div className="mt-1 flex flex-wrap gap-1">
-                  {task.assignee.capabilities.map((capability, index) => (
+                  {task.assignee.capabilities.map((capability) => (
                     <span
-                      key={index}
+                      key={capability}
                       className="px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded text-xs"
                     >
                       {capability}
@@ -358,7 +358,7 @@ function TaskDetailView({ task }: { task: Task }) {
             <ul className="space-y-1">
               {task.inputs.map((input, index) => (
                 <li
-                  key={index}
+                  key={`input-${index}-${input}`}
                   className="text-sm text-blue-800 dark:text-blue-200"
                 >
                   • {input}
@@ -376,7 +376,7 @@ function TaskDetailView({ task }: { task: Task }) {
             <ul className="space-y-1">
               {task.outputs.map((output, index) => (
                 <li
-                  key={index}
+                  key={`output-${index}-${output}`}
                   className="text-sm text-green-800 dark:text-green-200"
                 >
                   • {output}
@@ -488,7 +488,7 @@ function FormDetailView({ form }: { form: Form }) {
         </span>
       </div>
 
-      {form.schema && form.schema.sections && (
+      {form.schema?.sections && (
         <div className="p-4 bg-orange-50 dark:bg-orange-950 rounded-lg border border-orange-200 dark:border-orange-800">
           <h5 className="font-medium mb-3 text-orange-900 dark:text-orange-100">
             📊 Form Schema
@@ -500,7 +500,7 @@ function FormDetailView({ form }: { form: Form }) {
             </div>
             {form.schema.sections.map((section, index) => (
               <div
-                key={index}
+                key={`section-${index}-${section.name}`}
                 className="pl-4 border-l-2 border-orange-200 dark:border-orange-800"
               >
                 <div className="font-medium text-orange-900 dark:text-orange-100">
@@ -655,7 +655,7 @@ function GoalDetailView({ goal }: { goal: Goal }) {
               <ul className="mt-1 space-y-1">
                 {goal.success_criteria.outputs_required.map((output, index) => (
                   <li
-                    key={index}
+                    key={`output-${index}-${output}`}
                     className="text-sm text-blue-700 dark:text-blue-300"
                   >
                     • {output}

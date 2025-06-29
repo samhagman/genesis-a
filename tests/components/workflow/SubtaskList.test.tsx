@@ -1,7 +1,7 @@
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { SubtaskList } from "@/components/workflow/SubtaskList";
 import type { Subtask } from "@/types/workflow";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("SubtaskList", () => {
   const mockSubtasks: Subtask[] = [

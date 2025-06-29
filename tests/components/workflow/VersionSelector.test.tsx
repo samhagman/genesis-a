@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import {
   VersionSelector,
   type WorkflowVersion,
 } from "@/components/workflow/VersionSelector";
 import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock workflow for testing
 const mockWorkflow: WorkflowTemplateV2 = {
@@ -72,7 +72,7 @@ global.fetch = vi.fn();
 describe("VersionSelector", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (global.fetch as any).mockResolvedValue({
+    (global.fetch as vi.MockedFunction<typeof fetch>).mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ versions: mockVersions }),
     });
@@ -232,7 +232,7 @@ describe("VersionSelector", () => {
     const mockOnVersionChange = vi.fn();
 
     // Mock successful revert response
-    (global.fetch as any)
+    (global.fetch as vi.MockedFunction<typeof fetch>)
       .mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ versions: mockVersions }),
@@ -277,7 +277,7 @@ describe("VersionSelector", () => {
 
   it("shows loading state during revert", async () => {
     // Mock delayed revert response
-    (global.fetch as any)
+    (global.fetch as vi.MockedFunction<typeof fetch>)
       .mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ versions: mockVersions }),
@@ -325,7 +325,9 @@ describe("VersionSelector", () => {
   });
 
   it("handles version loading error gracefully", async () => {
-    (global.fetch as any).mockRejectedValueOnce(new Error("Network error"));
+    (global.fetch as vi.MockedFunction<typeof fetch>).mockRejectedValueOnce(
+      new Error("Network error")
+    );
 
     const mockProps = {
       workflow: mockWorkflow,
@@ -344,7 +346,7 @@ describe("VersionSelector", () => {
 
   it("handles revert error gracefully", async () => {
     // Mock successful initial load, failed revert
-    (global.fetch as any)
+    (global.fetch as vi.MockedFunction<typeof fetch>)
       .mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ versions: mockVersions }),
@@ -381,7 +383,7 @@ describe("VersionSelector", () => {
 
   it("disables select during revert operation", async () => {
     // Mock delayed revert response
-    (global.fetch as any)
+    (global.fetch as vi.MockedFunction<typeof fetch>)
       .mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ versions: mockVersions }),

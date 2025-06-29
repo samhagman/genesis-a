@@ -11,19 +11,19 @@
  * - Tool-level permission checking and audit logging
  */
 
-import {
-  workflowEditingTools,
-  WORKFLOW_EDITING_TOOL_DEFINITIONS,
-} from "./workflowEditingTools";
-import {
-  generateSystemPrompt,
-  generateWorkflowSummary,
-  generateErrorCorrectionPrompt,
-  validateUserRequest,
-  sanitizeUserInput,
-} from "./promptTemplates";
 import type { WorkflowTemplateV2 } from "../types/workflow-v2";
 import { validateWorkflowV2Strict } from "../utils/schema-validation";
+import {
+  generateErrorCorrectionPrompt,
+  generateSystemPrompt,
+  generateWorkflowSummary,
+  sanitizeUserInput,
+  validateUserRequest,
+} from "./promptTemplates";
+import {
+  WORKFLOW_EDITING_TOOL_DEFINITIONS,
+  workflowEditingTools,
+} from "./workflowEditingTools";
 
 // ============================================================================
 // Types and Interfaces
@@ -48,7 +48,7 @@ export interface WorkflowEditResponse {
 
 export interface ToolCall {
   tool: string;
-  params: Record<string, any>;
+  params: Record<string, unknown>;
   result?: "success" | "error";
   errorMessage?: string;
 }
@@ -67,7 +67,7 @@ export interface AgentContext {
 // ============================================================================
 
 export class WorkflowEditingAgent {
-  private maxRetries = 2;
+  public maxRetries = 2;
   private auditLog: ToolCall[] = [];
 
   constructor(
@@ -160,21 +160,20 @@ export class WorkflowEditingAgent {
             message: `Successfully ${this.summarizeChanges(agentResponse.toolCalls)}. ${agentResponse.reasoning || ""}`,
             toolCalls: agentResponse.toolCalls,
           };
-        } else {
-          lastError = executionResult.errorMessage;
-          console.warn(`Attempt ${attempt + 1} failed:`, lastError);
+        }
+        lastError = executionResult.errorMessage;
+        console.warn(`Attempt ${attempt + 1} failed:`, lastError);
 
-          // If this is the last attempt, return the error
-          if (attempt === this.maxRetries) {
-            return {
-              success: false,
-              message:
-                "I was unable to make the requested changes after multiple attempts. Please check your request and try again.",
-              errorDetails: lastError,
-              validationErrors: executionResult.validationErrors,
-              toolCalls: agentResponse.toolCalls,
-            };
-          }
+        // If this is the last attempt, return the error
+        if (attempt === this.maxRetries) {
+          return {
+            success: false,
+            message:
+              "I was unable to make the requested changes after multiple attempts. Please check your request and try again.",
+            errorDetails: lastError,
+            validationErrors: executionResult.validationErrors,
+            toolCalls: agentResponse.toolCalls,
+          };
         }
       } catch (error) {
         lastError =
@@ -227,7 +226,8 @@ export class WorkflowEditingAgent {
     // Parse the response
     try {
       const responseText =
-        (response as any).response || JSON.stringify(response);
+        (response as { response?: string }).response ||
+        JSON.stringify(response);
       const parsed = JSON.parse(responseText);
 
       if (!parsed.toolCalls || !Array.isArray(parsed.toolCalls)) {
@@ -278,7 +278,10 @@ export class WorkflowEditingAgent {
         // Execute the tool call
         const toolFunction = workflowEditingTools[
           toolCall.tool as keyof typeof workflowEditingTools
-        ] as Function;
+        ] as (
+          workflow: WorkflowTemplateV2,
+          ...args: unknown[]
+        ) => WorkflowTemplateV2;
         const updatedWorkflow = toolFunction(
           currentWorkflow,
           ...Object.values(toolCall.params)
@@ -420,7 +423,7 @@ Please respond with the appropriate tool calls to fulfill the user's request.`;
               this.maxRetries
             );
 
-      prompt += "\n\n" + errorGuidance;
+      prompt += `\n\n${errorGuidance}`;
     }
 
     return prompt;
@@ -492,7 +495,7 @@ export function createWorkflowEditingAgent(
   );
 
   if (options?.maxRetries !== undefined) {
-    (agent as any).maxRetries = options.maxRetries;
+    agent.maxRetries = options.maxRetries;
   }
 
   return agent;
@@ -531,8 +534,10 @@ export function validateToolCall(toolCall: ToolCall): {
 
   // Validate parameter types (basic validation)
   for (const [paramName, paramValue] of Object.entries(toolCall.params)) {
-    const paramDef = (toolDef.parameters.properties as any)[paramName];
-    if (paramDef && paramDef.type) {
+    const paramDef = (
+      toolDef.parameters.properties as Record<string, { type?: string }>
+    )[paramName];
+    if (paramDef?.type) {
       const actualType = Array.isArray(paramValue)
         ? "array"
         : typeof paramValue;

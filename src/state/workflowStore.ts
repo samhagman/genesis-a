@@ -5,14 +5,14 @@
  * Provides normalized state storage for optimal React performance.
  */
 
+import type {
+  ExecutionScenario,
+  ExecutionStatus,
+  RuntimeEnvelope,
+  WorkflowInstance,
+} from "@/types/workflow-instance";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import type {
-  WorkflowInstance,
-  RuntimeEnvelope,
-  ExecutionStatus,
-  ExecutionScenario,
-} from "@/types/workflow-instance";
 
 // Store state interface
 interface WorkflowStoreState {
@@ -28,7 +28,10 @@ interface WorkflowStoreState {
   clearActiveInstance: () => void;
   updateNode: (templateId: string, partial: Partial<RuntimeEnvelope>) => void;
   updateNodeStatus: (templateId: string, status: ExecutionStatus) => void;
-  updateNodeContext: (templateId: string, context: Record<string, any>) => void;
+  updateNodeContext: (
+    templateId: string,
+    context: Record<string, unknown>
+  ) => void;
   loadScenario: (scenario: ExecutionScenario) => void;
   setScenarios: (scenarios: ExecutionScenario[]) => void;
 }
@@ -89,7 +92,10 @@ export const useWorkflowStore = create<WorkflowStoreState>()(
       get().updateNode(templateId, { status });
     },
 
-    updateNodeContext: (templateId: string, context: Record<string, any>) => {
+    updateNodeContext: (
+      templateId: string,
+      context: Record<string, unknown>
+    ) => {
       get().updateNode(templateId, { ctx: context });
     },
 

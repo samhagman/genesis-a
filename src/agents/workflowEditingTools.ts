@@ -12,22 +12,22 @@
  */
 
 import type {
-  WorkflowTemplateV2,
-  Goal,
   Constraint,
+  Form,
+  GlobalSettings,
+  Goal,
   Policy,
   Task,
-  Form,
   WorkflowMetadata,
-  GlobalSettings,
+  WorkflowTemplateV2,
 } from "../types/workflow-v2";
 import {
-  validateWorkflowV2Strict,
-  validateGoalStrict,
   validateConstraintStrict,
+  validateFormStrict,
+  validateGoalStrict,
   validatePolicyStrict,
   validateTaskStrict,
-  validateFormStrict,
+  validateWorkflowV2Strict,
 } from "../utils/schema-validation";
 
 // ============================================================================
@@ -145,7 +145,7 @@ export interface WorkflowEditingTools {
 /**
  * Generate a unique ID for new workflow elements
  */
-function generateId(prefix: string = "item"): string {
+function generateId(prefix = "item"): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
@@ -182,7 +182,7 @@ function findElementInGoals<T>(
     const goal = workflow.goals[goalIndex];
     const elements = goal[elementType] as T[];
     const elementIndex = elements.findIndex(
-      (item: any) => item.id === elementId
+      (item) => (item as { id: string }).id === elementId
     );
 
     if (elementIndex !== -1) {
@@ -408,13 +408,13 @@ export const workflowEditingTools: WorkflowEditingTools = {
     newWorkflow.goals[goalIndex].tasks.splice(elementIndex, 1);
 
     // Remove dependencies on this task from other tasks
-    newWorkflow.goals.forEach((goal) => {
-      goal.tasks.forEach((task) => {
+    for (const goal of newWorkflow.goals) {
+      for (const task of goal.tasks) {
         if (task.depends_on) {
           task.depends_on = task.depends_on.filter((dep) => dep !== taskId);
         }
-      });
-    });
+      }
+    }
 
     // Validate the entire workflow
     validateWorkflowV2Strict(newWorkflow);
@@ -798,7 +798,7 @@ export const workflowEditingTools: WorkflowEditingTools = {
 
     // Find element in source goal
     const elementIndex = fromGoal[pluralType].findIndex(
-      (item: any) => item.id === elementId
+      (item: { id: string }) => item.id === elementId
     );
     if (elementIndex === -1) {
       throw new Error(
@@ -811,7 +811,7 @@ export const workflowEditingTools: WorkflowEditingTools = {
     newWorkflow.goals[fromIndex][pluralType].splice(elementIndex, 1);
 
     // Add element to destination goal
-    (newWorkflow.goals[toIndex][pluralType] as any[]).push(element);
+    (newWorkflow.goals[toIndex][pluralType] as { id: string }[]).push(element);
 
     // Validate the entire workflow
     validateWorkflowV2Strict(newWorkflow);

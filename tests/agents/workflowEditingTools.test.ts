@@ -3,15 +3,15 @@
  * Validates that all semantic editing functions work correctly with V2 schema
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { workflowEditingTools } from "../../src/agents/workflowEditingTools";
 import type {
-  WorkflowTemplateV2,
-  Goal,
-  Task,
   Constraint,
-  Policy,
   Form,
+  Goal,
+  Policy,
+  Task,
+  WorkflowTemplateV2,
 } from "../../src/types/workflow-v2";
 
 describe("WorkflowEditingTools", () => {
@@ -391,7 +391,7 @@ describe("WorkflowEditingTools", () => {
   describe("Bulk Operations", () => {
     it("should duplicate a goal with new IDs", () => {
       // Add some elements to the goal first
-      let enrichedWorkflow = workflowEditingTools.addTask(
+      const enrichedWorkflow = workflowEditingTools.addTask(
         testWorkflow,
         "goal1",
         {
@@ -509,9 +509,12 @@ describe("WorkflowEditingTools", () => {
       expect(() => {
         // Direct assignment to test validation
         const newWorkflow = { ...testWorkflow, ...invalidUpdate };
-        workflowEditingTools.updateWorkflowMetadata(newWorkflow as any, {
-          author: "test",
-        });
+        workflowEditingTools.updateWorkflowMetadata(
+          newWorkflow as WorkflowTemplateV2,
+          {
+            author: "test",
+          }
+        );
       }).toThrow();
     });
   });

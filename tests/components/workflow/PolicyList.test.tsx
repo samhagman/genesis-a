@@ -1,7 +1,7 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { PolicyList } from "@/components/workflow/PolicyList";
 import type { Policy } from "@/types/workflow-v2";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockPolicies: Policy[] = [
   {

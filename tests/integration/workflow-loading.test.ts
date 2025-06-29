@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { WorkflowTemplateV2, isWorkflowV2 } from "@/types/workflow-v2";
+import { type WorkflowTemplateV2, isWorkflowV2 } from "@/types/workflow-v2";
+import { describe, expect, it } from "vitest";
 
 // Test workflow data loading and validation
 describe("Workflow Data Loading Integration", () => {
@@ -26,7 +26,7 @@ describe("Workflow Data Loading Integration", () => {
     expect(workflow.goals.length).toBe(3);
 
     // Validate each goal has V2 elements
-    workflow.goals.forEach((goal, index) => {
+    for (const [index, goal] of workflow.goals.entries()) {
       expect(goal.id).toBeDefined();
       expect(goal.name).toBeDefined();
       expect(goal.description).toBeDefined();
@@ -37,52 +37,52 @@ describe("Workflow Data Loading Integration", () => {
       expect(Array.isArray(goal.policies)).toBe(true);
       expect(Array.isArray(goal.tasks)).toBe(true);
       expect(Array.isArray(goal.forms)).toBe(true);
-    });
+    }
 
     // Validate constraints structure
     const allConstraints = workflow.goals.flatMap((goal) => goal.constraints);
     expect(allConstraints.length).toBeGreaterThan(0);
 
-    allConstraints.forEach((constraint) => {
+    for (const constraint of allConstraints) {
       expect(constraint.id).toBeDefined();
       expect(constraint.description).toBeDefined();
       expect(constraint.type).toBeDefined();
       expect(constraint.enforcement).toBeDefined();
-    });
+    }
 
     // Validate policies structure
     const allPolicies = workflow.goals.flatMap((goal) => goal.policies);
     expect(allPolicies.length).toBeGreaterThan(0);
 
-    allPolicies.forEach((policy) => {
+    for (const policy of allPolicies) {
       expect(policy.id).toBeDefined();
       expect(policy.name).toBeDefined();
       expect(policy.if).toBeDefined();
       expect(policy.then).toBeDefined();
       expect(policy.then.action).toBeDefined();
       expect(policy.then.params).toBeDefined();
-    });
+    }
 
     // Validate tasks structure
     const allTasks = workflow.goals.flatMap((goal) => goal.tasks);
     expect(allTasks.length).toBeGreaterThan(0);
 
-    allTasks.forEach((task) => {
+    for (const task of allTasks) {
       expect(task.id).toBeDefined();
       expect(task.description).toBeDefined();
       expect(task.assignee).toBeDefined();
       expect(task.assignee.type).toMatch(/^(ai_agent|human)$/);
-    });
+    }
 
     // Validate forms structure
     const allForms = workflow.goals.flatMap((goal) => goal.forms);
     expect(allForms.length).toBeGreaterThan(0);
 
-    allForms.forEach((form) => {
+    for (const form of allForms) {
       expect(form.id).toBeDefined();
       expect(form.name).toBeDefined();
       expect(form.type).toMatch(/^(structured|conversational|automated)$/);
-    });
+    }
   });
 
   it("should load and validate Employee Onboarding V2 workflow", async () => {
@@ -105,12 +105,12 @@ describe("Workflow Data Loading Integration", () => {
     expect(workflow.goals).toBeDefined();
     expect(workflow.goals.length).toBeGreaterThan(0);
 
-    workflow.goals.forEach((goal) => {
+    for (const goal of workflow.goals) {
       expect(goal.constraints).toBeDefined();
       expect(goal.policies).toBeDefined();
       expect(goal.tasks).toBeDefined();
       expect(goal.forms).toBeDefined();
-    });
+    }
   });
 
   it("should load workflow index and provide unified access", async () => {
@@ -201,9 +201,9 @@ describe("Workflow Data Loading Integration", () => {
     // Validate triggers if present
     if (workflow.triggers) {
       expect(Array.isArray(workflow.triggers)).toBe(true);
-      workflow.triggers.forEach((trigger) => {
+      for (const trigger of workflow.triggers) {
         expect(trigger.type).toMatch(/^(webhook|schedule|manual|event)$/);
-      });
+      }
     }
   });
 
@@ -241,10 +241,10 @@ describe("Workflow Data Loading Integration", () => {
       "block_duplicate",
     ];
 
-    allConstraints.forEach((constraint) => {
+    for (const constraint of allConstraints) {
       expect(validConstraintTypes).toContain(constraint.type);
       expect(validEnforcementLevels).toContain(constraint.enforcement);
-    });
+    }
   });
 
   it("should validate task assignee types and configurations", async () => {
@@ -255,7 +255,7 @@ describe("Workflow Data Loading Integration", () => {
 
     const allTasks = workflow.goals.flatMap((goal) => goal.tasks);
 
-    allTasks.forEach((task) => {
+    for (const task of allTasks) {
       expect(["ai_agent", "human"]).toContain(task.assignee.type);
 
       if (task.assignee.type === "ai_agent") {
@@ -274,7 +274,7 @@ describe("Workflow Data Loading Integration", () => {
           expect(typeof task.assignee.role).toBe("string");
         }
       }
-    });
+    }
   });
 
   it("should validate form types and structures", async () => {
@@ -285,7 +285,7 @@ describe("Workflow Data Loading Integration", () => {
 
     const allForms = workflow.goals.flatMap((goal) => goal.forms);
 
-    allForms.forEach((form) => {
+    for (const form of allForms) {
       expect(["structured", "conversational", "automated"]).toContain(
         form.type
       );
@@ -308,6 +308,6 @@ describe("Workflow Data Loading Integration", () => {
           expect(Array.isArray(form.data_sources)).toBe(true);
         }
       }
-    });
+    }
   });
 });

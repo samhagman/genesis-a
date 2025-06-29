@@ -1,36 +1,37 @@
-import { useEffect, useState, useRef, useCallback } from "react";
-import { useAgent } from "agents/react";
-import { useAgentChat } from "agents/ai-react";
 import type { Message } from "@ai-sdk/react";
+import { useAgentChat } from "agents/ai-react";
+import { useAgent } from "agents/react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { tools } from "../../tools";
 
-// Workflow editing imports
-import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
 import type {
+  ToolCall,
   WorkflowEditRequest,
   WorkflowEditResponse,
 } from "@/agents/workflowEditingAgent";
+// Workflow editing imports
+import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
 
+import { Avatar } from "@/components/avatar/Avatar";
 // Component imports
 import { Button } from "@/components/button/Button";
 import { Card } from "@/components/card/Card";
-import { Avatar } from "@/components/avatar/Avatar";
-import { Toggle } from "@/components/toggle/Toggle";
-import { Textarea } from "@/components/textarea/Textarea";
 import { MemoizedMarkdown } from "@/components/memoized-markdown";
+import { Textarea } from "@/components/textarea/Textarea";
+import { Toggle } from "@/components/toggle/Toggle";
 import { ToolInvocationCard } from "@/components/tool-invocation-card/ToolInvocationCard";
+import { type AgentStatus, AgentStatusDisplay } from "./AgentStatusDisplay";
 import { EditModeToggle } from "./EditModeToggle";
-import { AgentStatusDisplay, type AgentStatus } from "./AgentStatusDisplay";
 
 // Icon imports
 import {
   Bug,
   Moon,
+  PaperPlaneTilt,
   Robot,
+  Stop,
   Sun,
   Trash,
-  PaperPlaneTilt,
-  Stop,
 } from "@phosphor-icons/react";
 
 // List of tools that require human confirmation
@@ -347,9 +348,9 @@ export function ChatPanel({
                             </p>
                             <div className="space-y-1">
                               {edit.response.toolCalls.map(
-                                (call: any, idx: number) => (
+                                (call: ToolCall, idx: number) => (
                                   <div
-                                    key={idx}
+                                    key={`${call.tool}-${idx}`}
                                     className="text-xs font-mono bg-neutral-100 dark:bg-neutral-800 p-2 rounded"
                                   >
                                     <span
@@ -500,7 +501,9 @@ export function ChatPanel({
             // Handle workflow editing
             if (agentInput.trim()) {
               handleWorkflowEdit(agentInput.trim());
-              handleAgentInputChange({ target: { value: "" } } as any);
+              handleAgentInputChange({
+                target: { value: "" },
+              } as React.ChangeEvent<HTMLInputElement>);
             }
           } else {
             // Handle regular chat

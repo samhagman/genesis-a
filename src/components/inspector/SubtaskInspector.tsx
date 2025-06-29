@@ -1,4 +1,4 @@
-import type { Subtask, Goal, WorkflowTemplate } from "@/types/workflow";
+import type { Goal, Subtask, WorkflowTemplate } from "@/types/workflow";
 import { getStatusConfig } from "@/utils/status";
 
 export interface SubtaskInspectorProps {

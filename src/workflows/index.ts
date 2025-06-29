@@ -1,10 +1,10 @@
 import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
 import {
-  safeLoadWorkflow,
+  type SafeWorkflowResult,
   WorkflowLoadError,
   logWorkflowError,
   retryWorkflowLoad,
-  type SafeWorkflowResult,
+  safeLoadWorkflow,
 } from "@/utils/error-handling";
 import employeeOnboardingV2Data from "./employee-onboarding-v2.json";
 import instaworkShiftFillingData from "./instawork-shift-filling.json";
@@ -43,7 +43,9 @@ export async function loadWorkflowTemplate(
     console.warn(
       `[Workflow Load] Loaded workflow "${templateId}" with warnings:`
     );
-    result.warnings.forEach((warning) => console.warn(`  - ${warning}`));
+    for (const warning of result.warnings) {
+      console.warn(`  - ${warning}`);
+    }
   }
 
   return result.data;
@@ -137,7 +139,7 @@ export async function loadMultipleWorkflowTemplates(
   const successful: Array<{ id: string; workflow: WorkflowTemplateV2 }> = [];
   const failed: Array<{ id: string; error: string }> = [];
 
-  results.forEach((promiseResult) => {
+  for (const promiseResult of results) {
     if (promiseResult.status === "fulfilled") {
       const { id, result } = promiseResult.value;
       if (result.success) {
@@ -148,7 +150,7 @@ export async function loadMultipleWorkflowTemplates(
     } else {
       failed.push({ id: "unknown", error: promiseResult.reason });
     }
-  });
+  }
 
   return { successful, failed };
 }

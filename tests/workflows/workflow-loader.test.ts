@@ -1,15 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
 import {
+  WorkflowLoadError,
+  getWorkflowTemplateInfo,
+  getWorkflowTemplateList,
+  hasWorkflowTemplate,
+  loadMultipleWorkflowTemplates,
   loadWorkflowTemplate,
   loadWorkflowTemplateSafe,
-  getWorkflowTemplateList,
-  getWorkflowTemplateInfo,
-  hasWorkflowTemplate,
   validateWorkflowTemplate,
-  loadMultipleWorkflowTemplates,
-  WorkflowLoadError,
 } from "@/workflows/index";
-import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock console methods to avoid noise in tests
 beforeEach(() => {
@@ -55,10 +55,10 @@ describe("Workflow Loader", () => {
     });
 
     it("should throw error for null/undefined template ID", async () => {
-      await expect(loadWorkflowTemplate(null as any)).rejects.toThrow(
+      await expect(loadWorkflowTemplate(null as never)).rejects.toThrow(
         WorkflowLoadError
       );
-      await expect(loadWorkflowTemplate(undefined as any)).rejects.toThrow(
+      await expect(loadWorkflowTemplate(undefined as never)).rejects.toThrow(
         WorkflowLoadError
       );
     });
@@ -145,7 +145,7 @@ describe("Workflow Loader", () => {
     it("should include all required fields for each workflow", () => {
       const info = getWorkflowTemplateInfo();
 
-      info.forEach((workflow) => {
+      for (const workflow of info) {
         expect(workflow.id).toBeDefined();
         expect(typeof workflow.id).toBe("string");
         expect(workflow.id.length).toBeGreaterThan(0);
@@ -157,7 +157,7 @@ describe("Workflow Loader", () => {
         expect(workflow.description).toBeDefined();
         expect(typeof workflow.description).toBe("string");
         expect(workflow.description.length).toBeGreaterThan(0);
-      });
+      }
     });
   });
 
@@ -174,8 +174,8 @@ describe("Workflow Loader", () => {
     });
 
     it("should handle null/undefined input", () => {
-      expect(hasWorkflowTemplate(null as any)).toBe(false);
-      expect(hasWorkflowTemplate(undefined as any)).toBe(false);
+      expect(hasWorkflowTemplate(null as never)).toBe(false);
+      expect(hasWorkflowTemplate(undefined as never)).toBe(false);
     });
   });
 
@@ -263,9 +263,9 @@ describe("Workflow Loader", () => {
       expect(result.successful).toHaveLength(0);
       expect(result.failed).toHaveLength(3);
 
-      result.failed.forEach((failed) => {
+      for (const failed of result.failed) {
         expect(failed.error).toContain("not found");
-      });
+      }
     });
 
     it("should handle duplicate template IDs", async () => {

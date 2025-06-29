@@ -1,4 +1,4 @@
-import { PencilSimple, ChatCircle } from "@phosphor-icons/react";
+import { ChatCircle, PencilSimple } from "@phosphor-icons/react";
 
 export interface EditModeToggleProps {
   editMode: boolean;

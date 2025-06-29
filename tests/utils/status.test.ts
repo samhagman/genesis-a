@@ -1,13 +1,13 @@
-import { describe, it, expect } from "vitest";
+import type { Status } from "@/types/workflow";
 import {
+  getGoalBorderStyling,
+  getStatusColors,
   getStatusConfig,
   getStatusIcon,
   getStatusLabel,
-  getStatusColors,
-  getGoalBorderStyling,
   getSubtaskStyling,
 } from "@/utils/status";
-import type { Status } from "@/types/workflow";
+import { describe, expect, it } from "vitest";
 
 describe("Status Utilities", () => {
   describe("getStatusConfig", () => {
