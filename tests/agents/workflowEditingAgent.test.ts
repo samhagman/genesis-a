@@ -1,6 +1,7 @@
 /**
  * Tests for WorkflowEditingAgent
  * Validates the agent orchestrator functionality with mocked AI responses
+ * These are unit tests - for integration tests with real AI, see workflowEditingAgent.integration.test.ts
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

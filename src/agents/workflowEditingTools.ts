@@ -968,7 +968,10 @@ export const WORKFLOW_EDITING_TOOL_DEFINITIONS = {
           properties: {
             name: { type: "string", description: "Goal name" },
             description: { type: "string", description: "Goal description" },
-            timeout_minutes: { type: "number", description: "Timeout in minutes" },
+            timeout_minutes: {
+              type: "number",
+              description: "Timeout in minutes",
+            },
           },
         },
       },
@@ -994,10 +997,10 @@ export const WORKFLOW_EDITING_TOOL_DEFINITIONS = {
     parameters: {
       type: "object",
       properties: {
-        goalIds: { 
-          type: "array", 
+        goalIds: {
+          type: "array",
           items: { type: "string" },
-          description: "Array of goal IDs in new order" 
+          description: "Array of goal IDs in new order",
         },
       },
       required: ["goalIds"],
@@ -1011,7 +1014,10 @@ export const WORKFLOW_EDITING_TOOL_DEFINITIONS = {
       type: "object",
       properties: {
         goalId: { type: "string", description: "ID of the goal to duplicate" },
-        newName: { type: "string", description: "Name for the duplicated goal" },
+        newName: {
+          type: "string",
+          description: "Name for the duplicated goal",
+        },
       },
       required: ["goalId", "newName"],
     },
@@ -1064,14 +1070,25 @@ export const WORKFLOW_EDITING_TOOL_DEFINITIONS = {
     parameters: {
       type: "object",
       properties: {
-        constraintId: { type: "string", description: "ID of the constraint to update" },
+        constraintId: {
+          type: "string",
+          description: "ID of the constraint to update",
+        },
         updates: {
           type: "object",
           properties: {
-            description: { type: "string", description: "Constraint description" },
+            description: {
+              type: "string",
+              description: "Constraint description",
+            },
             enforcement: {
               type: "string",
-              enum: ["hard_stop", "block_progression", "require_approval", "warn"],
+              enum: [
+                "hard_stop",
+                "block_progression",
+                "require_approval",
+                "warn",
+              ],
             },
             value: { description: "Constraint value" },
             condition: { type: "string", description: "Constraint condition" },
@@ -1088,7 +1105,10 @@ export const WORKFLOW_EDITING_TOOL_DEFINITIONS = {
     parameters: {
       type: "object",
       properties: {
-        constraintId: { type: "string", description: "ID of the constraint to delete" },
+        constraintId: {
+          type: "string",
+          description: "ID of the constraint to delete",
+        },
       },
       required: ["constraintId"],
     },
@@ -1101,7 +1121,10 @@ export const WORKFLOW_EDITING_TOOL_DEFINITIONS = {
     parameters: {
       type: "object",
       properties: {
-        goalId: { type: "string", description: "ID of the goal to add the policy to" },
+        goalId: {
+          type: "string",
+          description: "ID of the goal to add the policy to",
+        },
         policy: {
           type: "object",
           properties: {
@@ -1112,7 +1135,10 @@ export const WORKFLOW_EDITING_TOOL_DEFINITIONS = {
               properties: {
                 condition: { type: "string", description: "Condition string" },
                 field: { type: "string", description: "Field to check" },
-                operator: { type: "string", description: "Comparison operator" },
+                operator: {
+                  type: "string",
+                  description: "Comparison operator",
+                },
                 value: { description: "Value to compare against" },
               },
             },
@@ -1171,21 +1197,30 @@ export const WORKFLOW_EDITING_TOOL_DEFINITIONS = {
     parameters: {
       type: "object",
       properties: {
-        goalId: { type: "string", description: "ID of the goal to add the form to" },
+        goalId: {
+          type: "string",
+          description: "ID of the goal to add the form to",
+        },
         form: {
           type: "object",
           properties: {
             id: { type: "string", description: "Unique identifier (optional)" },
             name: { type: "string", description: "Form name" },
             description: { type: "string", description: "Form description" },
-            type: { 
-              type: "string", 
+            type: {
+              type: "string",
               enum: ["structured", "conversational", "automated"],
-              description: "Form type" 
+              description: "Form type",
             },
             schema: { type: "object", description: "Form schema (optional)" },
-            agent: { type: "string", description: "Agent for conversational forms (optional)" },
-            template: { type: "string", description: "Template for automated forms (optional)" },
+            agent: {
+              type: "string",
+              description: "Agent for conversational forms (optional)",
+            },
+            template: {
+              type: "string",
+              description: "Template for automated forms (optional)",
+            },
           },
           required: ["name", "type"],
         },
@@ -1206,9 +1241,9 @@ export const WORKFLOW_EDITING_TOOL_DEFINITIONS = {
           properties: {
             name: { type: "string", description: "Form name" },
             description: { type: "string", description: "Form description" },
-            type: { 
-              type: "string", 
-              enum: ["structured", "conversational", "automated"] 
+            type: {
+              type: "string",
+              enum: ["structured", "conversational", "automated"],
             },
             schema: { type: "object", description: "Form schema" },
           },
@@ -1233,14 +1268,15 @@ export const WORKFLOW_EDITING_TOOL_DEFINITIONS = {
   // Bulk Operations
   moveElementBetweenGoals: {
     name: "moveElementBetweenGoals",
-    description: "Move an element (task, constraint, policy, or form) between goals",
+    description:
+      "Move an element (task, constraint, policy, or form) between goals",
     parameters: {
       type: "object",
       properties: {
-        elementType: { 
-          type: "string", 
+        elementType: {
+          type: "string",
           enum: ["task", "constraint", "policy", "form"],
-          description: "Type of element to move" 
+          description: "Type of element to move",
         },
         elementId: { type: "string", description: "ID of the element to move" },
         fromGoalId: { type: "string", description: "ID of the source goal" },
@@ -1261,10 +1297,10 @@ export const WORKFLOW_EDITING_TOOL_DEFINITIONS = {
           type: "object",
           properties: {
             author: { type: "string", description: "Workflow author" },
-            tags: { 
-              type: "array", 
+            tags: {
+              type: "array",
               items: { type: "string" },
-              description: "Workflow tags" 
+              description: "Workflow tags",
             },
           },
         },
@@ -1282,9 +1318,18 @@ export const WORKFLOW_EDITING_TOOL_DEFINITIONS = {
         settings: {
           type: "object",
           properties: {
-            max_execution_time_hours: { type: "number", description: "Maximum execution time" },
-            data_retention_days: { type: "number", description: "Data retention period" },
-            default_timezone: { type: "string", description: "Default timezone" },
+            max_execution_time_hours: {
+              type: "number",
+              description: "Maximum execution time",
+            },
+            data_retention_days: {
+              type: "number",
+              description: "Data retention period",
+            },
+            default_timezone: {
+              type: "string",
+              description: "Default timezone",
+            },
           },
         },
       },

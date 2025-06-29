@@ -30,12 +30,11 @@ export function AgentStatusDisplay({
       status === "executing"
     ) {
       const interval = setInterval(() => {
-        setDots((prev) => (prev.length >= 3 ? "" : prev + "."));
+        setDots((prev) => (prev.length >= 3 ? "" : `${prev}.`));
       }, 500);
       return () => clearInterval(interval);
-    } else {
-      setDots("");
     }
+    setDots("");
   }, [status]);
 
   if (status === "idle") {

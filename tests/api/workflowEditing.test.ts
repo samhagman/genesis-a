@@ -3,7 +3,7 @@
  * Validates HTTP API integration with WorkflowEditingAgent and WorkflowVersioningService
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   WorkflowEditingAPI,
   routeWorkflowEditingAPI,
@@ -15,6 +15,10 @@ describe("WorkflowEditingAPI", () => {
   let mockEnv: any;
   let api: WorkflowEditingAPI;
   let testWorkflow: WorkflowTemplateV2;
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   beforeEach(() => {
     // Mock Cloudflare Workers AI
@@ -245,9 +249,9 @@ describe("WorkflowEditingAPI", () => {
       const response = await failingApi.handleRequest(request);
       const result = await response.json();
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(503);
       expect(result.success).toBe(false);
-      expect(result.message).toContain("error occurred while processing");
+      expect(result.message).toContain("An error occurred while processing");
     });
   });
 

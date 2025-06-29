@@ -6,6 +6,7 @@
  */
 
 import { WORKFLOW_EDITING_TOOL_DEFINITIONS } from "./workflowEditingTools";
+import type { WorkflowTemplateV2, Goal } from "../types/workflow-v2";
 
 // ============================================================================
 // Core System Prompts
@@ -227,23 +228,20 @@ export function generateSystemPrompt(): string {
     2
   );
 
-  return (
-    WORKFLOW_AGENT_SYSTEM_PROMPT +
-    `
+  return `${WORKFLOW_AGENT_SYSTEM_PROMPT}
 
 COMPLETE TOOL DEFINITIONS:
 ${toolDefinitions}
 
 TOOL USAGE EXAMPLES:
-${Object.values(TOOL_USAGE_EXAMPLES).join("\n\n")}`
-  );
+${Object.values(TOOL_USAGE_EXAMPLES).join("\n\n")}`;
 }
 
 /**
  * Generate workflow summary section for prompts
  */
-export function generateWorkflowSummary(workflow: any): string {
-  const totalElements = workflow.goals.reduce((total: number, goal: any) => {
+export function generateWorkflowSummary(workflow: WorkflowTemplateV2): string {
+  const totalElements = workflow.goals.reduce((total: number, goal: Goal) => {
     return (
       total +
       goal.constraints.length +
@@ -255,7 +253,7 @@ export function generateWorkflowSummary(workflow: any): string {
 
   const goalsBreakdown = workflow.goals
     .map(
-      (goal: any, index: number) =>
+      (goal: Goal, index: number) =>
         `  ${index + 1}. "${goal.name}" (${goal.constraints.length} constraints, ${goal.policies.length} policies, ${goal.tasks.length} tasks, ${goal.forms.length} forms)`
     )
     .join("\n");

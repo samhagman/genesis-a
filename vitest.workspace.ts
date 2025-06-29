@@ -6,6 +6,7 @@ export default defineWorkspace([
   // Component tests with jsdom
   {
     test: {
+      name: "jsdom",
       include: ["tests/components/**/*.test.tsx"],
       environment: "jsdom",
       setupFiles: ["./tests/setup.ts"],
@@ -17,21 +18,28 @@ export default defineWorkspace([
       },
     },
   },
-  // Server tests with workers (preserving original config)
+  // Unified Workers runtime tests (unit + integration)
   defineWorkersConfig({
-    environments: {
-      ssr: {
-        keepProcessEnv: true,
-      },
-    },
     test: {
-      include: ["tests/**/*.test.ts"],
+      name: "workers",
+      include: [
+        "tests/**/*.test.ts",
+        "tests/**/*.integration.test.ts"
+      ],
       exclude: ["tests/components/**"],
       poolOptions: {
         workers: {
           wrangler: { configPath: "./wrangler.jsonc" },
+          // Enable isolated storage for proper test isolation
+          isolatedStorage: true,
         },
       },
+      // Setup file for all worker tests
+      setupFiles: ["./tests/workers-setup.ts"],
+      // Increase timeout for integration tests that use real bindings
+      testTimeout: 30000,
+      // Allow console output for debugging real binding interactions
+      disableConsoleIntercept: true,
     },
     resolve: {
       alias: {

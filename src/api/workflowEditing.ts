@@ -196,7 +196,7 @@ export class WorkflowEditingAPI {
           auditLog: agent.getAuditLog(),
         });
       } else {
-        // Edit failed
+        // Edit failed - likely due to upstream service failure (AI, validation, etc.)
         return Response.json(
           {
             success: false,
@@ -205,7 +205,7 @@ export class WorkflowEditingAPI {
             validationErrors: editResponse.validationErrors,
             auditLog: agent.getAuditLog(),
           },
-          { status: 400 }
+          { status: 503 } // Service Unavailable - upstream dependency failed
         );
       }
     } catch (error) {
@@ -334,7 +334,19 @@ export class WorkflowEditingAPI {
         return this.errorResponse("Invalid version number", 400);
       }
 
-      const body = (await request.json()) as RevertRequestBody;
+      // Handle empty body gracefully - editSummary is optional
+      let body: RevertRequestBody = {};
+      const contentType = request.headers.get("content-type");
+      if (request.body && contentType?.includes("application/json")) {
+        try {
+          const text = await request.text();
+          if (text.trim()) {
+            body = JSON.parse(text);
+          }
+        } catch (e) {
+          return this.errorResponse("Invalid JSON in request body", 400);
+        }
+      }
 
       const versioningService = createVersioningServiceFromEnv(this.env);
       if (!versioningService) {

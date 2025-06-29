@@ -159,10 +159,13 @@ export class WorkflowVersioningService {
       };
     } catch (error) {
       // SLC MVP: Re-throw corruption errors as fatal
-      if (error instanceof Error && error.message.includes("Corrupted workflow index")) {
+      if (
+        error instanceof Error &&
+        error.message.includes("Corrupted workflow index")
+      ) {
         throw error;
       }
-      
+
       console.error(`Error saving workflow version:`, error);
       return {
         success: false,
@@ -411,17 +414,19 @@ export class WorkflowVersioningService {
   ): Promise<WorkflowVersionIndex> {
     const indexPath = this.getIndexPath(templateId);
     const object = await this.r2.get(indexPath);
-    
+
     if (!object) {
       return this.createNewIndex(templateId);
     }
-    
+
     try {
       const content = await object.text();
       return JSON.parse(content) as WorkflowVersionIndex;
     } catch (error) {
       // SLC MVP: Log error and stop, don't try to recover
-      console.error(`FATAL: Corrupted index for ${templateId}. Manual recovery required.`);
+      console.error(
+        `FATAL: Corrupted index for ${templateId}. Manual recovery required.`
+      );
       throw new Error(`Corrupted workflow index: ${templateId}`);
     }
   }
