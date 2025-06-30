@@ -1,0 +1,614 @@
+
+The Definitive Guide to Local Development and Testing of Cloudflare AI Agents with Custom Tools
+
+
+Introduction
+
+The emergence of agentic AI marks a pivotal evolution from traditional generative models and deterministic automation.1 Unlike systems that follow predefined paths or passively respond to prompts, AI agents possess the capacity for autonomous task execution, dynamic decision-making, and adaptation based on context and intermediate results.1 This capability to reason, plan, and interact with an environment to achieve complex objectives is fundamentally unlocked by the use of "tools"—structured interfaces to external APIs, databases, and services.
+The Cloudflare developer platform, with its integrated ecosystem of serverless compute (Workers), stateful services (Durable Objects), and globally distributed AI inference (Workers AI), presents a uniquely powerful environment for building and deploying these sophisticated agentic applications.3 The platform is not merely a collection of disparate services but a cohesive architecture designed to support the demanding patterns of agentic workloads, such as long-running tasks, state persistence, and real-time communication.
+However, the very autonomy and complexity that make agents powerful also introduce significant engineering challenges. The reliability and predictability of an agent are directly tied to the robustness of its tools and the logic that governs their use. Consequently, a rigorous, comprehensive local development and testing workflow is not a luxury but an absolute necessity for building production-grade AI agents.
+This report provides an exhaustive, expert-level guide to the complete end-to-end workflow for developing, testing, and debugging Cloudflare AI Agents with custom tools in a local environment. Moving beyond surface-level documentation, it establishes a practical, code-driven methodology that covers project architecture, tool engineering, local execution, multi-layered automated testing, and advanced debugging. By following this guide, developers can gain the confidence to build, validate, and deploy complex, reliable, and powerful AI agents on the Cloudflare platform.
+
+Section 1: Architecting the Agent Project: Foundations and Configuration
+
+The initial phase of any successful software project involves establishing a well-structured and correctly configured foundation. For Cloudflare AI Agents, this is not merely a matter of creating files but of adopting a prescriptive architecture that Cloudflare has implicitly endorsed through its tooling. This architecture is purpose-built for stateful, interactive, and tool-driven AI applications, representing a significant evolution from traditional stateless serverless functions.
+
+1.1. Bootstrapping with the agents-starter Template
+
+The most effective and recommended starting point for any new Cloudflare AI Agent project is the official agents-starter template. Initiating a project with this template is accomplished via a single command-line instruction 1:
+
+Bash
+
+
+npm create cloudflare@latest -- --template cloudflare/agents-starter
+
+
+This command bootstraps a new project that is far more than a minimal "Hello, World." It provides a feature-rich, full-stack application foundation that immediately orients the developer towards building a complete agentic system. The key features provided out-of-the-box include an interactive chat user interface built with React, a pre-configured system for tool integration that supports human-in-the-loop confirmation, robust state management, and real-time streaming responses via WebSockets.5
+The inclusion of these components is a strong architectural statement. It signals that the intended paradigm for Cloudflare Agents is not a simple, stateless request-response API, but a sophisticated, long-lived, and interactive application. The agent is envisioned as a persistent entity that a user communicates with over time, a model that necessitates the stateful, real-time infrastructure the starter kit sets up by default.
+
+1.2. Dissecting the Prescriptive Project Structure
+
+Upon creation, the agents-starter template establishes a logical and scalable project structure. Understanding the role of each key file is crucial for effective development.5
+wrangler.toml (or wrangler.jsonc): This file acts as the central configuration and control plane for the entire Cloudflare project. It defines the Worker, specifies its entry point, sets compatibility flags, and, most importantly, declares the bindings to other Cloudflare resources that the agent will use. It is the manifest that describes the application's infrastructure to the Cloudflare platform.6
+src/server.ts: This is the heart of the agent's backend logic. It contains the class that extends Cloudflare's AIChatAgent, which itself is an abstraction built on the core Agent class.7 This file is where the primary orchestration of Large Language Model (LLM) interactions, conversation history management, and tool invocation logic resides.
+src/tools.ts: This dedicated module is where the agent's custom tools are defined. The starter kit deliberately separates the definition of the agent's capabilities (the tools) from its core reasoning logic (server.ts). This separation of concerns is a fundamental architectural pattern that promotes modularity and maintainability, preventing the core agent logic from becoming an unmanageable monolith as more tools are added.5
+src/app.tsx: This file contains the React-based front-end user interface. Its presence underscores the vision of agents as interactive, user-facing applications. It includes hooks like useAgent which abstract away the complexity of establishing and managing the WebSocket connection to the backend agent, enabling real-time, bidirectional communication.5
+package.json: This file lists the project's dependencies. The key packages installed by the starter are agents (the core Cloudflare Agents SDK), ai (the Vercel AI SDK, used for its powerful abstractions over LLM interactions and tool calling), and @cloudflare/vitest-pool-workers (the specialized package for testing Workers in a high-fidelity environment).5 This collection of libraries forms the essential software stack for building and testing the agent.
+
+1.3. Configuring wrangler.toml for Agentic Workloads
+
+The wrangler.toml file requires specific configuration to enable the unique capabilities of an AI agent. These configurations, known as bindings, create the link between the Worker's code and the Cloudflare resources it needs to operate.
+Durable Object Binding: This is the most critical configuration for a stateful agent. Each agent instance is backed by a Cloudflare Durable Object, which provides a stateful, single-threaded execution environment with access to a transactional, embedded SQLite database.1 This is what gives the agent its memory and persistence across multiple interactions. The binding is configured in
+wrangler.toml as follows 3:
+Ini, TOML
+# wrangler.toml
+[[durable_objects.bindings]]
+name = "AGENT" # The name used to access the binding in the Worker's code (env.AGENT)
+class_name = "AIAgent" # The name of the exported class in src/server.ts
+
+
+AI Binding: To grant the agent the ability to call LLMs, a binding to the Workers AI service is required. This allows the code to access models like Llama 3.1 or DeepSeek directly from the Cloudflare network.9
+Ini, TOML
+# wrangler.toml
+[ai]
+binding = "AI" # The binding is available in code via env.AI
+
+
+Resource Bindings for Tools: Custom tools often need to interact with other data services. For example, a Retrieval-Augmented Generation (RAG) tool would need access to a vector database, while another tool might need to read from a key-value store. These are configured with their own binding blocks.11
+Ini, TOML
+# wrangler.toml
+[[vectorize]]
+binding = "VECTORIZE_INDEX"
+index_name = "my-product-docs-index"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "production-database"
+database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+[[kv_namespaces]]
+binding = "CACHE_KV"
+id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+
+
+1.4. Secure Management of Local Secrets and Environment Variables
+
+Properly managing credentials and configuration is a cornerstone of secure and maintainable application development. The Wrangler CLI provides a clear and secure workflow for this, strictly separating sensitive secrets from general configuration.
+The .dev.vars File: For local development, all secrets (such as API keys) must be placed in a file named .dev.vars at the root of the project. This file should be included in .gitignore and never committed to version control.5 When
+wrangler dev is executed, it automatically loads the variables from this file and makes them available to the Worker environment.
+#.dev.vars
+OPENAI_API_KEY="sk-..."
+STRIPE_API_KEY="rk_live_..."
+
+
+Plaintext Variables ([vars]): For non-sensitive configuration that might change between environments (e.g., an API endpoint URL or a feature flag), the [vars] block in wrangler.toml is the appropriate place.13
+Ini, TOML
+# wrangler.toml
+[vars]
+API_HOST = "api.example.com"
+
+
+Environment-Specific Configuration: For production workflows, it is essential to manage different configurations for different environments (e.g., staging, production). Wrangler supports this through [env.<name>] blocks. These blocks can override top-level settings, including variables and bindings. This allows a developer to deploy the same codebase to a staging environment that uses a staging database and a production environment that uses the production database.13
+Ini, TOML
+# wrangler.toml
+name = "my-ai-agent"
+main = "src/server.ts"
+
+[vars]
+ENVIRONMENT = "development"
+
+[env.staging]
+name = "my-ai-agent-staging"
+[env.staging.vars]
+ENVIRONMENT = "staging"
+
+[env.production]
+name = "my-ai-agent-production"
+[env.production.vars]
+ENVIRONMENT = "production"
+
+
+By following this structured setup, a developer establishes a robust, secure, and scalable foundation, ready for the implementation of the agent's core logic and custom tools.
+
+Section 2: Engineering Custom Tools: The Agent's Interface to the World
+
+Once the project architecture is in place, the focus shifts to engineering the tools that give the agent its unique capabilities. Tools are the mechanism by which an agent transcends the limitations of its internal knowledge and interacts with the outside world—fetching data, performing actions, and accessing other systems. The design and implementation of these tools are paramount to the agent's overall effectiveness and reliability.
+
+2.1. Core Principles of Tool Design
+
+Effective tool design follows principles analogous to those of modern microservice architecture. Each tool should be a self-contained unit with a single, clearly defined responsibility. This modularity is key to managing complexity as the agent's skillset grows.
+The two most critical components of a tool's definition are its description and its parameters schema.
+The description Field: This is not merely documentation for human developers. It is the primary instruction that the LLM uses to reason about the tool's purpose and decide when it should be invoked. A well-crafted description is clear, concise, and action-oriented, explicitly stating what the tool does. Vague or misleading descriptions are a primary source of agent failure, leading the LLM to either misuse the tool or fail to use it when appropriate.17
+The parameters Schema: This defines the contract for the tool's input. It specifies the names, types, and constraints of the arguments the tool expects. The LLM uses this schema to structure its output, ensuring that when it decides to call the tool, it provides the necessary arguments in a valid JSON format that the tool's code can parse and use.17 Precision in this schema is essential for reliable tool invocation.
+
+2.2. Implementing Tools in src/tools.ts
+
+The agents-starter template centralizes tool definitions in the src/tools.ts file. This is where the agent's capabilities are brought to life through code. The following examples illustrate the key patterns for tool implementation.
+
+Example 1: An Auto-Executing Tool (getCurrentWeather)
+
+This tool demonstrates the simplest pattern: a function that takes input, performs an action (calling an external API), and returns data in a single, atomic step. It is defined with an async execute function, signaling that it can be run automatically by the agent without human intervention.5
+
+TypeScript
+
+
+// src/tools.ts
+import { tool } from "agents";
+import { z } from "zod";
+
+export const getCurrentWeather = tool({
+  description: "Get the current weather for a specific location.",
+  parameters: z.object({
+    location: z.string().describe("The city and state, e.g., San Francisco, CA"),
+  }),
+  execute: async ({ location }) => {
+    // In a real application, this would call a weather API.
+    // For this example, we'll return mock data.
+    console.log(`Tool executed: getCurrentWeather for ${location}`);
+    if (location.toLowerCase().includes("san francisco")) {
+      return { temperature: "15°C", condition: "foggy" };
+    }
+    return { temperature: "25°C", condition: "sunny" };
+  },
+});
+
+
+
+Example 2: A Human-in-the-Loop Tool (submitOrder)
+
+For actions that have significant real-world consequences, such as placing an order or sending an important email, full autonomy is often undesirable. The "human-in-the-loop" pattern is essential for safety and control. This is achieved by defining the tool without an execute function. The absence of this function signals to the agent framework that a confirmation step is required from the user interface before the action can proceed. The actual logic is defined separately in an executions object, which is called only after confirmation is received.5
+
+TypeScript
+
+
+// src/tools.ts
+
+//... other imports and tools
+
+export const submitOrder = tool({
+  description: "Submits a food order to a restaurant.",
+  parameters: z.object({
+    restaurant: z.string().describe("The name of the restaurant."),
+    items: z.array(z.string()).describe("A list of items to order."),
+  }),
+  // No `execute` function here means confirmation is required.
+});
+
+// The logic is defined in a separate export
+export const executions = {
+  submitOrder: async ({ restaurant, items }: { restaurant: string, items: string }) => {
+    console.log(`Executing confirmed tool: submitOrder for ${items.join(", ")} at ${restaurant}`);
+    // Logic to call the restaurant's ordering API would go here.
+    return { success: true, orderId: `order-${Date.now()}` };
+  },
+};
+
+
+This pattern is a first-class, architected feature of the Cloudflare agent ecosystem, reflecting a mature understanding of the practical requirements for deploying agents safely in enterprise and commercial contexts.
+
+Example 3: A Data-Access Tool (queryVectorDatabase)
+
+A common use case for agents is performing Retrieval-Augmented Generation (RAG), where the agent retrieves relevant information from a knowledge base to inform its response. This is implemented as a tool that interacts with a Cloudflare resource binding, such as a Vectorize index. The tool's execution context receives the env object, providing access to the configured bindings.11
+
+TypeScript
+
+
+// src/tools.ts
+
+//... other imports and tools
+
+export const queryVectorDatabase = tool({
+  description: "Searches the internal knowledge base for information about a topic.",
+  parameters: z.object({
+    query: z.string().describe("The search query."),
+  }),
+  execute: async ({ query }, { env }) => {
+    console.log(`Tool executed: queryVectorDatabase with query: "${query}"`);
+
+    // The 'env' object is passed as the second argument to execute.
+    // It contains all the bindings from wrangler.toml, including VECTORIZE_INDEX.
+    const { AI, VECTORIZE_INDEX } = env;
+
+    // 1. Create an embedding for the user's query.
+    const { data } = await AI.run('@cf/baai/bge-base-en-v1.5', { text: [query] });
+    const queryVector = data;
+
+    // 2. Query the Vectorize index to find similar documents.
+    const similarVectors = await VECTORIZE_INDEX.query(queryVector, { topK: 3 });
+
+    // 3. Return the retrieved information.
+    return similarVectors.matches.map(match => ({
+      score: match.score,
+      text: match.vector.metadata?.text,
+    }));
+  },
+});
+
+
+
+2.3. The Power of JSON Schema and Zod
+
+Reliable agentic systems depend on structured data exchange between the LLM and the tools. Cloudflare's platform explicitly supports this through its JSON Mode feature for Workers AI, which can force an LLM to respond with a valid JSON object conforming to a specified schema.1
+The agents-starter kit simplifies this process immensely by using the Zod library.5 Zod provides a fluent, developer-friendly API for defining data schemas with validation. The key process, abstracted away from the developer by the framework, is as follows:
+The developer defines the tool's parameters using a Zod schema (e.g., z.object({ location: z.string() })).
+The agents-sdk (leveraging the underlying ai-sdk) introspects this Zod object and automatically converts it into the more verbose, formal JSON Schema specification that LLM APIs require.
+This generated JSON Schema is then included in the tools array that is sent to the LLM during the API call.17
+This powerful abstraction layer allows developers to focus on the logic and intent of their tools, shielding them from the boilerplate and complexity of manually authoring and maintaining JSON Schemas. It significantly lowers the barrier to entry for building robust, tool-using agents.
+
+2.4. Integrating Tools into the Agent's Reasoning Loop
+
+The orchestration of tool use happens within the agent's core logic in src/server.ts, specifically within the onChatMessage method of the AIChatAgent class.7 This method uses functions like
+streamText from the Vercel AI SDK (ai package) to manage the multi-turn conversation with the LLM required for tool calling.1
+The end-to-end flow of a tool call is a well-defined sequence of events that demystifies the process:
+User Prompt: The user sends a message to the agent (e.g., "What is the weather in Cape Town?").
+LLM Request with Tools: The agent's onChatMessage handler is invoked. It constructs a request to the LLM that includes the current user prompt, the conversation history, and the JSON Schema definitions of all available tools (e.g., getCurrentWeather, submitOrder).
+Model Reasoning and Tool Selection: The LLM analyzes the request. Based on the user's intent and the description of the getCurrentWeather tool, it decides that this tool is the appropriate one to call. It then formulates a response that does not contain natural language, but instead a special message containing a tool_calls array. This array specifies the name of the tool to call (getCurrentWeather) and the arguments in a JSON object ({"location": "Cape Town"}) that conforms to the tool's schema.17
+Framework Interception and Execution: The ai-sdk intercepts this special tool_calls response. It parses the tool name and arguments and invokes the corresponding JavaScript execute function defined in src/tools.ts, passing the arguments to it.
+Tool Result as New Context: The JavaScript function executes (e.g., calls the weather API) and returns its result (e.g., { temperature: "19.4°C",... }). The framework takes this return value, wraps it in a new message with role: "tool", and sends it back to the LLM in a second API call. This message effectively tells the model, "I have executed the tool you requested, and here is the result."
+Final Response Generation: The LLM receives the tool's output. It now has the context it needs to formulate a final, natural language response to the user. It generates a message like, "The current temperature in Cape Town is approximately 19.4°C," which is then streamed back to the user interface.
+This multi-step, conversational process between the agent's code, the framework, and the LLM is the fundamental mechanism that enables agents to leverage external tools to accomplish tasks.
+
+Section 3: The Local Development Loop: Running and Interacting with Your Agent
+
+With the project structured and custom tools engineered, the next stage is the iterative, day-to-day development loop. This involves running the entire agent application locally, interacting with it to trigger tool use, and observing its behavior in real time. Cloudflare's Wrangler CLI and its underlying Miniflare simulator are the cornerstones of this workflow, providing a high-fidelity environment that closely mirrors production.
+
+3.1. Initiating the Local Environment with wrangler dev
+
+The local development server is initiated with a single command from the project's root directory 8:
+
+Bash
+
+
+npx wrangler dev
+
+
+(The agents-starter template conveniently maps this to npm start.)
+Executing this command starts the Miniflare simulator, which loads and runs the Worker code. The terminal output provides crucial information, including the local URL where the application is accessible (typically http://localhost:8787) and a list of the bindings from wrangler.toml that are being activated and simulated locally.8 Any changes made to the source code will automatically trigger a rebuild and reload of the Worker, enabling a rapid and efficient development cycle.20 The use of Miniflare is a key advantage, as it executes the code within the same
+workerd runtime used in Cloudflare's global network, significantly reducing the likelihood of "it works on my machine" issues when the time comes to deploy.25
+
+3.2. Triggering and Observing Custom Tools in Action
+
+Once the local server is running, the developer can interact with the agent through the React UI provided by the starter kit, which will be available at the local URL. This provides a direct method for testing and validating the behavior of the custom tools.
+Triggering an Auto-Executing Tool: To test the getCurrentWeather tool defined in the previous section, the developer would type a prompt like "What's the weather like in San Francisco?" into the chat interface. Upon sending the message, they can observe the wrangler dev terminal. The console.log statement within the tool's execute function (Tool executed: getCurrentWeather...) will appear, providing immediate confirmation that the agent's reasoning loop correctly identified and invoked the tool. The final response from the agent, incorporating the tool's mock data, will then appear in the chat UI.
+Triggering a Human-in-the-Loop Tool: To test the submitOrder tool, the developer would enter a prompt such as "Please order a large pizza to 123 Main St." The agent will reason that the submitOrder tool should be called. However, because this tool was defined without an execute function, the framework will not run it automatically. Instead, the ai-sdk and the starter kit's UI work together to present a confirmation dialog to the user, asking for approval to run the submitOrder tool with the extracted parameters (restaurant: "unknown", items: ["large pizza"]). Only after the developer clicks "Approve" in the UI will the corresponding logic in the executions object in src/tools.ts be triggered. Again, console.log statements will appear in the terminal, confirming the execution of the confirmed action.
+This interactive loop of prompting, observing terminal logs, and seeing results in the UI is the fundamental workflow for the initial development and manual testing of agent capabilities.
+
+3.3. Deep Dive: Local vs. Remote Bindings
+
+The wrangler dev environment is a pragmatic hybrid, designed to balance local development speed with access to powerful cloud services that cannot be easily simulated. Understanding the distinction between how it handles different types of bindings is critical for any developer working on the platform.25
+Local Simulation (Default Behavior): By default, wrangler dev simulates most resource bindings locally. When the agent's code interacts with env.DB (a D1 database) or env.CACHE_KV (a KV namespace), it is not communicating with a deployed Cloudflare service. Instead, it is interacting with a local, file-based simulation of that service managed by Miniflare. This approach is extremely fast, works offline, and incurs no cost. It is the ideal mode for the majority of development and for running automated unit tests.25
+Remote Connection (The Exception): In certain scenarios, a developer may need their locally running Worker code to interact with a real, deployed Cloudflare resource. This is useful for testing local code changes against a staging or even production dataset without needing to deploy the code itself. This can be enabled on a per-binding basis by adding experimental_remote: true to the binding's configuration in wrangler.toml or globally by using the --remote flag with wrangler dev.20
+The Workers AI Exception: A crucial and often overlooked detail is that the AI binding is a special case. There is no local simulation for large language models. Therefore, any interaction with env.AI always results in a network request to the remote Cloudflare Workers AI service, even during a standard wrangler dev session. Wrangler will issue a warning if experimental_remote: true is not explicitly set for the AI binding, encouraging developers to be aware of this remote interaction.25
+This hybrid model is a significant architectural strength. It provides the instant feedback of local development for the code the developer controls, while seamlessly integrating with powerful, non-simulatable cloud services like LLM inference endpoints.
+The following table summarizes the behavior of different bindings in local development.
+
+Resource Binding
+Default Behavior (wrangler dev)
+Remote Behavior (experimental_remote: true)
+Primary Use Case / Considerations
+KV Namespace
+Fully local simulation (in-memory/file-based). Data is not persisted between runs unless configured.
+Connects to the deployed KV namespace (production or preview).
+Local: Fast, isolated unit testing. Remote: Testing local code against real-world data. Use with caution on production data.
+R2 Bucket
+Fully local simulation (file-based).
+Connects to the deployed R2 bucket (production or preview).
+Local: Testing file upload/download logic. Remote: Validating interactions with large, existing datasets.
+D1 Database
+Fully local simulation (in-memory SQLite/file-based).
+Connects to the deployed D1 database (production or preview).
+Local: Testing queries and migrations without affecting live data. Remote: Debugging complex queries against a real database schema and data.
+Durable Objects
+Fully local simulation. State is stored locally.
+Not supported for remote connection. Always runs in the local simulation.
+Designed for local stateful testing. The agent itself runs in a local Durable Object.
+Workers AI
+Always Remote. Connects to the live Workers AI service.
+Always Remote. Setting experimental_remote: true is recommended to make this explicit.
+There is no local LLM simulation. All AI calls incur network latency and costs. Essential for testing real model behavior.
+
+
+Section 4: A Multi-Layered Testing Strategy with Vitest
+
+While manual interaction via wrangler dev is useful for initial development, building a reliable, production-grade AI agent demands a robust, automated testing strategy. The non-deterministic nature of LLMs, coupled with the cost and latency of API calls, makes direct testing against live models impractical for a CI/CD pipeline. The solution lies in a multi-layered approach using the Vitest testing framework, focusing on isolating components and mocking external dependencies, particularly the AI itself.
+
+4.1. Setting Up the Vitest Environment for Agents
+
+The agents-starter template comes pre-configured with the necessary setup for testing. The core component is the @cloudflare/vitest-pool-workers package, which enables Vitest to execute tests not in a standard Node.js environment, but directly inside the workerd runtime.8 This is a critical feature, as it ensures tests run in an environment that is virtually identical to production, eliminating a common source of bugs.27
+vitest.config.ts Deep Dive: The configuration file uses the defineWorkersConfig function. This function configures the test pool and tells Vitest to load the Worker's configuration directly from wrangler.toml.8 To test a stateful agent, the configuration must also be updated to declare the agent's Durable Object class, allowing Vitest to instantiate it during tests:
+TypeScript
+// vitest.config.ts
+import { defineWorkersConfig } from "@cloudflare/vitest-pool-workers/config";
+
+export default defineWorkersConfig({
+  test: {
+    poolOptions: {
+      workers: {
+        wrangler: { configPath: "./wrangler.toml" },
+        miniflare: {
+          // This is essential for testing agents
+          durableObjects: {
+            AGENT: "AIAgent", // Maps the binding name to the class name
+          },
+        },
+      },
+    },
+  },
+});
+
+
+TypeScript Configuration: For projects using TypeScript, a tsconfig.json file within the test directory is needed to include the special types for the cloudflare:test module, which provides testing utilities.26
+
+4.2. Unit Testing Tools in Isolation
+
+The first layer of testing focuses on the smallest units of logic: the custom tools themselves. Before testing the agent's ability to use a tool, it is essential to verify that the tool's own logic works correctly. This is done by writing unit tests that call the tool's execute function directly, mocking any of its external dependencies.
+For the getCurrentWeather tool, which makes an external fetch call, we can use the fetchMock utility provided by the cloudflare:test module. This allows us to simulate the weather API's response without making a real network request, resulting in a fast, deterministic, and reliable test.28
+
+TypeScript
+
+
+// test/tools.unit.test.ts
+import { describe, it, expect, beforeAll, afterEach } from "vitest";
+import { fetchMock } from "cloudflare:test";
+import { getCurrentWeather } from "../src/tools";
+
+describe("Tool: getCurrentWeather", () => {
+  beforeAll(() => {
+    // Enable mocking for all outbound fetch requests
+    fetchMock.activate();
+    // Throw an error if a request is made that hasn't been mocked
+    fetchMock.disableNetConnect();
+  });
+
+  afterEach(() => {
+    // Ensure all mocks were used
+    fetchMock.assertNoPendingInterceptors();
+  });
+
+  it("should return weather data for a known location", async () => {
+    const mockLocation = "San Francisco, CA";
+    const mockApiResponse = { main: { temp: 15 }, weather: [{ main: "Fog" }] };
+
+    // Mock the specific API call the tool is expected to make
+    fetchMock
+     .get("https://api.openweathermap.org") // Match the base URL
+     .intercept({ path: /data/ }) // Match the path
+     .reply(200, mockApiResponse);
+
+    // Directly execute the tool's logic
+    const result = await getCurrentWeather.execute({ location: mockLocation });
+
+    // Assert that the tool processed the mock response correctly
+    expect(result).toEqual({ temperature: "15°C", condition: "foggy" });
+  });
+});
+
+
+
+4.3. Integration Testing: The Art of Mocking the AI
+
+This is the most critical and nuanced part of testing an AI agent. The goal is to test the agent's orchestration logic: its ability to correctly process a user prompt, select the right tool, parse the tool's output, and generate a final response. To do this deterministically, the LLM itself must be mocked.
+While the Cloudflare documentation contains a recipe for this, it can be difficult to piece together.30 The definitive technique involves using Miniflare's ability to mock service bindings within the Vitest configuration. We can replace the real
+AI binding with a custom mock Worker that returns a predictable, hardcoded tool_calls response.
+Step 1: Create the Mock AI Worker
+Create a new file, test/mock-ai-worker.ts, that will act as our fake LLM. It inspects the incoming prompt and returns a canned response instructing the agent to call a specific tool.
+
+TypeScript
+
+
+// test/mock-ai-worker.ts
+export default {
+  async fetch(request: Request): Promise<Response> {
+    const { messages } = await request.json();
+    const lastUserMessage = messages.findLast(m => m.role === 'user').content;
+
+    // If the user asks about weather, return a tool_calls response
+    if (lastUserMessage.toLowerCase().includes("weather")) {
+      const toolCallResponse = {
+        role: "assistant",
+        content: null,
+        tool_calls:,
+      };
+      return new Response(JSON.stringify({ response: toolCallResponse }));
+    }
+
+    // Default response for other prompts
+    const defaultResponse = {
+      role: "assistant",
+      content: "I'm a mock AI and can only talk about weather.",
+    };
+    return new Response(JSON.stringify({ response: defaultResponse }));
+  },
+};
+
+
+Step 2: Configure Vitest to Use the Mock AI
+Update vitest.config.ts to replace the real AI binding with a service binding pointing to our mock Worker.
+
+TypeScript
+
+
+// vitest.config.ts
+import { defineWorkersConfig } from "@cloudflare/vitest-pool-workers/config";
+
+export default defineWorkersConfig({
+  test: {
+    poolOptions: {
+      workers: {
+        wrangler: { configPath: "./wrangler.toml" },
+        miniflare: {
+          durableObjects: { AGENT: "AIAgent" },
+          // Define our mock AI worker
+          workers: [
+            {
+              name: "mock-ai",
+              modules: true,
+              scriptPath: "./test/mock-ai-worker.ts",
+            },
+          ],
+          // Override the 'AI' binding to point to our mock service
+          serviceBindings: {
+            AI: "mock-ai",
+          },
+        },
+      },
+    },
+  },
+});
+
+
+Step 3: Write the Integration Test
+Now, write the integration test. It will send a prompt to the main agent. The agent will, in turn, call the AI binding. Because of our configuration, this call will be routed to our mock-ai-worker.ts. The mock will respond with the tool_calls object, triggering the agent's tool execution logic. We still need fetchMock to mock the external API call that the tool itself makes.
+
+TypeScript
+
+
+// test/agent.integration.test.ts
+import { describe, it, expect, beforeAll, afterEach } from "vitest";
+import { SELF, fetchMock, env } from "cloudflare:test";
+
+describe("Agent Integration Test with Mocked AI", () => {
+  beforeAll(() => {
+    fetchMock.activate();
+    fetchMock.disableNetConnect();
+  });
+
+  afterEach(() => fetchMock.assertNoPendingInterceptors());
+
+  it("should use the weather tool when asked about the weather", async () => {
+    // Mock the external weather API that the *tool* will call
+    fetchMock
+     .get("https://api.openweathermap.org")
+     .intercept({ path: /data/ })
+     .reply(200, { main: { temp: 15 }, weather: [{ main: "Fog" }] });
+
+    // Get a stub for our agent's Durable Object
+    const id = env.AGENT.newUniqueId();
+    const stub = env.AGENT.get(id);
+
+    // Send a fetch request to the agent's Durable Object, simulating a user message
+    const response = await stub.fetch("http://localhost/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: "What is the weather in SF?" }),
+    });
+
+    const responseText = await response.text();
+
+    // Assert that the final response incorporates the tool's data
+    expect(responseText).toContain("The weather in San Francisco, CA is 15°C and foggy.");
+  });
+});
+
+
+This multi-layered testing strategy—unit testing tools with mocked dependencies, and integration testing the agent with a mocked AI—provides a comprehensive and deterministic method for validating the behavior of a complex agentic system, making it suitable for automated CI/CD environments.
+
+Section 5: Debugging and Observability: Gaining Insight into Agent Behavior
+
+Even with a robust testing suite, debugging is an inevitable part of development, especially for complex systems like AI agents where failures can occur either in the developer's code or in the opaque reasoning process of the LLM.31 Cloudflare provides an integrated, multi-layered observability stack that offers visibility into every stage of the agent's execution, from low-level code inspection to high-level prompt tracing.
+
+5.1. Level 1: Terminal-Based Tracing with console.log
+
+The most direct and simplest form of debugging is using console.log statements to trace the flow of data through the system. During local development with wrangler dev, any console.log messages from the Worker code are printed directly to the terminal in real-time.32
+Developers can strategically place logs in key locations to gain insight:
+In src/server.ts: Before calling the LLM, log the messages array to see the exact prompt and history being sent. After receiving the response, log the entire response object to inspect the tool_calls generated by the model.
+In src/tools.ts: At the beginning of a tool's execute function, log the arguments it received. This is crucial for verifying that the LLM is providing the correct parameters. Before returning, log the result that will be sent back to the LLM.
+This technique provides a quick and effective way to trace the data flow and pinpoint discrepancies between expected and actual behavior.
+
+5.2. Level 2: Interactive Breakpoint Debugging with DevTools
+
+For deeper, more interactive inspection, Cloudflare provides a powerful implementation of Chrome's DevTools integrated directly into the local development workflow.33
+The process is straightforward:
+Start the local development server with npx wrangler dev.
+Once the server is running, press the D key in the terminal. This will open a dedicated Chrome DevTools window connected to the workerd instance running the agent.32
+In the DevTools "Sources" panel, the developer can navigate the project's file tree and open, for example, src/tools.ts.
+By clicking on a line number, a breakpoint can be set within a tool's execute function.
+When the developer interacts with the UI to trigger that tool, code execution will pause at the breakpoint.
+At this point, the developer has full interactive debugging capabilities. They can inspect the values of variables (e.g., the exact arguments passed from the LLM), examine the call stack, and step through the code line by line. This is an invaluable tool for diagnosing complex bugs, race conditions, or incorrect logic within a custom tool.32
+
+5.3. Level 3: Full-Cycle Tracing with AI Gateway
+
+While local debugging tools are excellent for inspecting the developer's code, they cannot provide insight into the LLM's internal "reasoning." To understand why a model chose to call a certain tool, or why it failed to do so, a higher-level tracing tool is needed. Cloudflare AI Gateway serves this purpose perfectly.
+AI Gateway acts as a proxy between the application and the underlying AI provider. By routing all AI requests through it, developers gain a centralized, persistent log of every interaction.34
+The workflow involves:
+Creating a new AI Gateway in the Cloudflare dashboard.
+Configuring the gateway to point to the desired AI provider (e.g., Workers AI).
+Updating the agent's code in src/server.ts to send its AI requests to the unique endpoint URL provided by the gateway instead of directly to the provider.23
+Once configured, the AI Gateway dashboard provides a detailed, searchable log of every prompt-response cycle. For each request, a developer can see the full prompt sent to the model, the raw response received (including tool_calls), token usage, latency, and estimated cost.37 This is the ultimate ground truth for debugging prompt engineering issues, analyzing model behavior, and ensuring cost and privacy compliance.
+Furthermore, Cloudflare is expanding this capability with the introduction of the AI Gateway Server, a Model Context Protocol (MCP) server that allows for programmatic querying and analysis of these logs. This opens the door to automated monitoring, quality evaluation, and even more sophisticated debugging workflows built on top of the gateway's telemetry data.38
+The combination of these techniques provides a comprehensive observability solution that addresses the unique challenges of building and operating AI agents.
+The following table compares these debugging techniques to help developers choose the right tool for the task.
+
+Technique
+Granularity
+Ideal Use Case
+Setup Complexity
+console.log in wrangler dev
+Low (String-based)
+Quick, real-time tracing of data flow and function execution during initial development.
+Very Low
+Interactive DevTools (D key)
+High (Code-level)
+Deep, interactive inspection of code state, call stack, and variable values. Debugging complex logic within tools.
+Low
+AI Gateway Logging
+High (Prompt/Response-level)
+Analyzing LLM behavior, debugging prompt engineering, monitoring production traffic, and tracking cost/latency.
+Medium
+
+
+Conclusion and Best Practices
+
+The development of AI agents on Cloudflare represents a convergence of serverless compute, stateful architecture, and intelligent inference. This powerful combination enables the creation of autonomous systems capable of complex reasoning and action. However, harnessing this power requires a disciplined and structured engineering workflow that prioritizes testing and observability. The end-to-end process detailed in this report—from architecture and tool engineering to local development, multi-layered testing, and debugging—provides a comprehensive blueprint for building reliable, production-grade agents.
+By internalizing this workflow, developers can move beyond simple proofs-of-concept and confidently build sophisticated AI applications. The key is to recognize that Cloudflare is providing not just a set of tools, but a cohesive platform with a clear architectural point of view. The emphasis on stateful Durable Objects, the built-in support for human-in-the-loop patterns, and the deeply integrated testing and observability stack are all designed to address the unique challenges of the agentic paradigm.
+Based on the analysis, the following best practices are recommended for any team or individual building AI agents on Cloudflare:
+Always Start with the agents-starter Template: Do not start from a blank slate. The starter kit 5 encapsulates critical architectural patterns and best practices, including the use of Durable Objects for state, a modular tool structure, and a pre-configured testing environment. It is the canonical entry point for a reason.
+Engineer Tools with Precision and Clarity: Treat each tool as a well-defined microservice. The tool's description is its API contract for the LLM; it must be clear and unambiguous.18 The
+parameters schema is the contract for the data; it must be precise.
+Embrace the Human-in-the-Loop Pattern: For any tool that performs a critical or irreversible action, leverage the built-in pattern of omitting the execute function to enforce user confirmation.5 Full autonomy is powerful but not always desirable or safe.
+Adopt a Multi-Layered, Mock-Heavy Testing Strategy: A reliable agent cannot be tested directly against a live LLM in an automated fashion. The correct approach is to:
+Unit test each tool's logic in isolation, using fetchMock to stub external dependencies.28
+Integration test the agent's orchestration logic by mocking the AI binding itself, allowing for deterministic validation of the tool-calling cycle.30
+Use the Right Debugging Tool for the Job: Employ a tiered approach to observability. Use console.log for quick traces, the interactive DevTools for deep code inspection 33, and AI Gateway for analyzing the high-level prompt-response interactions with the LLM, especially in production.37
+Develop Locally, Connect Remotely with Intent: Leverage the speed of the local simulation for the majority of development. Use remote bindings (--remote) sparingly and deliberately, primarily for testing local code changes against real-world staging or preview data.25
+By adhering to these principles and following the comprehensive workflow outlined in this guide, developers can effectively manage the complexity of agentic systems and unlock the full potential of the Cloudflare platform to build the next generation of intelligent applications.
+Works cited
+Making Cloudflare the best platform for building AI Agents, accessed June 28, 2025, https://blog.cloudflare.com/build-ai-agents-on-cloudflare/
+Cloudflare: The Secret Weapon for Building AI Agents - Just Think AI, accessed June 28, 2025, https://www.justthink.ai/blog/cloudflare-the-secret-weapon-for-building-ai-agents
+Cloudflare Agents, accessed June 28, 2025, https://agents.cloudflare.com/
+cloudflare/agents: Build and deploy AI Agents on Cloudflare - GitHub, accessed June 28, 2025, https://github.com/cloudflare/agents
+A starter kit for building ai agents on Cloudflare - GitHub, accessed June 28, 2025, https://github.com/cloudflare/agents-starter
+Configuration - Wrangler · Cloudflare Workers docs, accessed June 28, 2025, https://developers.cloudflare.com/workers/wrangler/configuration/
+Building an AI Agent that puts humans in the loop with Knock and Cloudflare's Agents SDK, accessed June 28, 2025, https://blog.cloudflare.com/building-agents-at-knock-agents-sdk/
+Testing your Agents - Cloudflare Docs, accessed June 28, 2025, https://developers.cloudflare.com/agents/getting-started/testing-your-agent/
+Get started - Workers and Wrangler · Cloudflare Workers AI docs, accessed June 28, 2025, https://developers.cloudflare.com/workers-ai/get-started/workers-wrangler/
+Community Providers: Cloudflare Workers AI - AI SDK, accessed June 28, 2025, https://ai-sdk.dev/providers/community-providers/cloudflare-workers-ai
+Introduction to Vectorize - Cloudflare Docs, accessed June 28, 2025, https://developers.cloudflare.com/vectorize/get-started/intro/
+Commands - Wrangler · Cloudflare Workers docs, accessed June 28, 2025, https://developers.cloudflare.com/workers/wrangler/commands/
+Environment variables - Workers - Cloudflare Docs, accessed June 28, 2025, https://developers.cloudflare.com/workers/configuration/environment-variables/
+Configuring wrangler.toml for your project needs - Edge Computing with Cloudflare Workers: Building Fast, Global Serverless Applications | StudyRaid, accessed June 28, 2025, https://app.studyraid.com/en/read/14352/488193/configuring-wranglertoml-for-your-project-needs
+Configuring environments in Cloudflare workers | by Jahel - Medium, accessed June 28, 2025, https://medium.com/@jleonro/configuring-environments-in-cloudflare-workers-252a81f99bd5
+Environments - Workers - Cloudflare Docs, accessed June 28, 2025, https://developers.cloudflare.com/workers/wrangler/environments/
+OpenAI GPT function calling with JavaScript and Cloudflare Workers ..., accessed June 28, 2025, https://developers.cloudflare.com/workers/tutorials/openai-function-calls-workers/
+Some help to understand how AI Agent "Custom code tool" need to be used, accessed June 28, 2025, https://community.n8n.io/t/some-help-to-understand-how-ai-agent-custom-code-tool-need-to-be-used/48006
+Tools - Agents - Cloudflare Docs, accessed June 28, 2025, https://developers.cloudflare.com/agents/concepts/tools/
+Build a Retrieval Augmented Generation (RAG) AI - Cloudflare Docs, accessed June 28, 2025, https://developers.cloudflare.com/workers-ai/guides/tutorials/build-a-retrieval-augmented-generation-ai/
+JSON Mode - Workers AI - Cloudflare Docs, accessed June 28, 2025, https://developers.cloudflare.com/workers-ai/features/json-mode/
+Vercel AI SDK · Cloudflare Workers AI docs, accessed June 28, 2025, https://developers.cloudflare.com/workers-ai/configuration/ai-sdk/
+Using AI Models - Agents - Cloudflare Docs, accessed June 28, 2025, https://developers.cloudflare.com/agents/api-reference/using-ai-models/
+How to add Custom Tools to AI Agents (EASY!) - YouTube, accessed June 28, 2025, https://www.youtube.com/watch?v=3eU9kA-qfmg&pp=0gcJCf0Ao7VqN5tD
+Development & testing · Cloudflare Workers docs, accessed June 28, 2025, https://developers.cloudflare.com/workers/development-testing/
+Write your first test · Cloudflare Workers docs, accessed June 28, 2025, https://developers.cloudflare.com/workers/testing/vitest-integration/write-your-first-test/
+Vitest integration - Workers - Cloudflare Docs, accessed June 28, 2025, https://developers.cloudflare.com/workers/testing/vitest-integration/
+Test APIs - Workers - Cloudflare Docs, accessed June 28, 2025, https://developers.cloudflare.com/workers/testing/vitest-integration/test-apis/
+Improved Cloudflare Workers testing via Vitest and workerd, accessed June 28, 2025, https://blog.cloudflare.com/id-id/workers-vitest-integration
+Recipes and examples · Cloudflare Workers docs, accessed June 28, 2025, https://developers.cloudflare.com/workers/testing/vitest-integration/recipes/
+Developers building AI agents - what are your biggest challenges? : r/AI_Agents - Reddit, accessed June 28, 2025, https://www.reddit.com/r/AI_Agents/comments/1kf4qgx/developers_building_ai_agents_what_are_your/
+Better debugging for Cloudflare Workers, now with breakpoints, accessed June 28, 2025, https://blog.cloudflare.com/debugging-cloudflare-workers/
+DevTools - Workers - Cloudflare Docs, accessed June 28, 2025, https://developers.cloudflare.com/workers/observability/dev-tools/
+Create and secure an AI agent wrapper using AI Gateway and Zero Trust - Cloudflare Docs, accessed June 28, 2025, https://developers.cloudflare.com/cloudflare-one/tutorials/ai-wrapper-tenant-control/
+Create your first AI Gateway using Workers AI - Cloudflare Docs, accessed June 28, 2025, https://developers.cloudflare.com/ai-gateway/tutorials/create-first-aig-workers/
+Vercel AI SDK · Cloudflare AI Gateway docs, accessed June 28, 2025, https://developers.cloudflare.com/ai-gateway/integrations/vercel-ai-sdk/
+Logging - AI Gateway - Cloudflare Docs, accessed June 28, 2025, https://developers.cloudflare.com/ai-gateway/observability/logging/
+Cloudflare Expands AI Capabilities with Launch of Thirteen New ..., accessed June 28, 2025, https://www.infoq.com/news/2025/06/cloudflare-ai-new-mcp-servers/
+
