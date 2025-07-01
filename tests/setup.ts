@@ -14,7 +14,7 @@ global.fetch = vi.fn().mockResolvedValue({
 });
 
 // Mock DOM methods not available in jsdom
-Object.defineProperty(Element.prototype, 'scrollIntoView', {
+Object.defineProperty(Element.prototype, "scrollIntoView", {
   value: vi.fn(),
   writable: true,
 });

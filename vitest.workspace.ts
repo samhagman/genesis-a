@@ -16,14 +16,7 @@ export default defineWorkspace([
       environment: "jsdom",
       setupFiles: ["./tests/setup.ts"],
       disableConsoleIntercept: true,
-      // Limit workers to prevent socket listener accumulation
-      pool: "threads",
-      poolOptions: {
-        threads: {
-          minThreads: 1,
-          maxThreads: 4,
-        },
-      },
+      // Component tests now run in parallel (socket listener issue fixed by process.setMaxListeners(0) above)
     },
     resolve: {
       alias: {
@@ -31,27 +24,42 @@ export default defineWorkspace([
       },
     },
   },
-  // Unified Workers runtime tests (unit + integration)
+  // Workers unit tests (fast, no real bindings)
   defineWorkersConfig({
     test: {
-      name: "workers",
-      include: ["tests/**/*.test.ts", "tests/**/*.integration.test.ts"],
-      exclude: ["tests/components/**"],
+      name: "workers-unit",
+      include: ["tests/**/*.test.ts"],
+      exclude: ["tests/components/**", "**/*.integration.test.ts", "**/integration-cost-money.test.ts"],
       poolOptions: {
         workers: {
           wrangler: { configPath: "./wrangler.jsonc" },
-          // Enable isolated storage for proper test isolation
           isolatedStorage: true,
-          // Limit workers to prevent socket listener accumulation
-          minWorkers: 1,
-          maxWorkers: 4,
         },
       },
-      // Setup file for all worker tests
       setupFiles: ["./tests/workers-setup.ts"],
-      // Increase timeout for integration tests that use real bindings
       testTimeout: 30000,
-      // Allow console output for debugging real binding interactions
+      disableConsoleIntercept: true,
+    },
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
+    },
+  }),
+  // Workers integration tests (slow, uses real bindings)
+  defineWorkersConfig({
+    test: {
+      name: "workers-integration",
+      include: ["tests/**/*.integration.test.ts"],
+      exclude: ["**/integration-cost-money.test.ts"],
+      poolOptions: {
+        workers: {
+          wrangler: { configPath: "./wrangler.jsonc" },
+          isolatedStorage: true,
+        },
+      },
+      setupFiles: ["./tests/workers-setup.ts"],
+      testTimeout: 90000, // Longer timeout for integration tests
       disableConsoleIntercept: true,
     },
     resolve: {
