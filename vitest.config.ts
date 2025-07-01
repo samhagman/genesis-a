@@ -23,7 +23,7 @@ export default defineWorkersConfig({
             {
               name: "mock-ai",
               modules: true,
-              scriptPath: "./test/mock-ai-worker.ts",
+              scriptPath: "./tests/utils/mock-ai-worker.ts",
             },
           ],
 
