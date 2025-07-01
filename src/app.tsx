@@ -1,4 +1,4 @@
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { ScenarioSwitcher } from "@/components/development/ScenarioSwitcher";
@@ -137,12 +137,22 @@ export default function App() {
   );
 }
 
-const hasOpenAiKeyPromise = fetch("/check-open-ai-key").then((res) =>
-  res.json<{ success: boolean }>()
-);
-
 function HasOpenAIKey() {
-  const hasOpenAiKey = use(hasOpenAiKeyPromise);
+  const [hasOpenAiKey, setHasOpenAiKey] = useState<{ success: boolean } | null>(null);
+  
+  useEffect(() => {
+    fetch("/check-open-ai-key")
+      .then((res) => res.json())
+      .then((data) => setHasOpenAiKey(data))
+      .catch((error) => {
+        console.error("Failed to check OpenAI key:", error);
+        setHasOpenAiKey({ success: false });
+      });
+  }, []);
+  
+  if (!hasOpenAiKey) {
+    return <div>Loading...</div>;
+  }
 
   if (!hasOpenAiKey.success) {
     return (
