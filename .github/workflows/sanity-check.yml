@@ -1,30 +1,56 @@
-name: Sanity Check
+name: Quick Sanity Check
 
 on:
   push:
-    branches:
-      - main
+    branches-ignore:
+      - main # Main branch uses the full CI/CD pipeline
   pull_request:
     branches:
       - main
 
+env:
+  NODE_VERSION: "20"
+
 jobs:
-  check:
-    timeout-minutes: 5
+  quick-check:
+    name: Quick Quality Check
+    timeout-minutes: 8
     strategy:
       matrix:
         os: [
             ubuntu-24.04,
+            # Cross-platform testing can be enabled later
             # windows-latest,
             # macos-latest,
           ]
     runs-on: ${{ matrix.os }}
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - uses: actions/setup-node@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
 
-      - run: npm install
-      - run: npm run check
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate types
+        run: npm run types
+
+      - name: Run quick quality checks
+        run: npm run check
+
+      - name: Test basic functionality
+        run: npx vitest run tests/utils/schema-validation.test.ts --reporter=basic
+        env:
+          ENVIRONMENT: test
+          NODE_ENV: test
+
+      - name: Verify build works
+        run: npm run build

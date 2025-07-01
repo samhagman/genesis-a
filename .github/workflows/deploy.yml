@@ -1,0 +1,228 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy to"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  NODE_VERSION: "20"
+  WRANGLER_VERSION: "^4.20.3"
+
+jobs:
+  # Code Quality and Testing
+  quality:
+    name: Code Quality & Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate types
+        run: npm run types
+
+      - name: Run code quality checks
+        run: npm run check
+
+      - name: Run unit tests
+        run: npx vitest run --reporter=verbose tests/utils/schema-validation.test.ts tests/utils/error-handling.test.ts tests/agents/workflowEditingTools.test.ts
+        env:
+          # Test environment variables
+          ENVIRONMENT: test
+          NODE_ENV: test
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+        env:
+          # E2E test environment variables
+          ENVIRONMENT: test
+          NODE_ENV: test
+
+      - name: Build application
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            dist/
+            .wrangler/
+          retention-days: 1
+
+  # Staging Deployment
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: quality
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: staging
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate types
+        run: npm run types
+
+      - name: Deploy to Staging
+        run: npm run deploy:staging
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_STAGING }}
+
+      - name: Staging Health Check
+        run: |
+          echo "Waiting for staging deployment to be ready..."
+          sleep 30
+          curl -f https://genesis-a-staging.workers.dev/check-open-ai-key || {
+            echo "❌ Staging health check failed"
+            exit 1
+          }
+          echo "✅ Staging deployment successful"
+
+  # Production Deployment
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [quality, deploy-staging]
+    if: |
+      github.event_name == 'workflow_dispatch' && 
+      github.event.inputs.environment == 'production'
+    environment: production
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate types
+        run: npm run types
+
+      - name: Deploy to Production
+        run: npm run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_PRODUCTION }}
+          AI_GATEWAY_URL: ${{ secrets.AI_GATEWAY_URL_PRODUCTION }}
+
+      - name: Production Health Check
+        run: |
+          echo "Waiting for production deployment to be ready..."
+          sleep 30
+          curl -f https://genesis-a-production.workers.dev/check-open-ai-key || {
+            echo "❌ Production health check failed"
+            exit 1
+          }
+          echo "✅ Production deployment successful"
+
+      - name: Notify Production Deployment
+        run: |
+          echo "🚀 Production deployment completed successfully!"
+          echo "📊 Deployment URL: https://genesis-a-production.workers.dev"
+
+  # Security Scanning
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run security audit
+        run: npm audit --audit-level=high
+
+      - name: Check for known vulnerabilities
+        run: npx audit-ci --config ./audit-ci.json || true
+
+  # Cleanup
+  cleanup:
+    name: Cleanup Artifacts
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+
+    steps:
+      - name: Clean up old artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifacts = await github.rest.actions.listArtifactsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+
+            const oldArtifacts = artifacts.data.artifacts.filter(artifact => {
+              const createdAt = new Date(artifact.created_at);
+              const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+              return createdAt < twoDaysAgo;
+            });
+
+            for (const artifact of oldArtifacts) {
+              console.log(`Deleting artifact: ${artifact.name}`);
+              await github.rest.actions.deleteArtifact({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                artifact_id: artifact.id,
+              });
+            }
