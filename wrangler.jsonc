@@ -6,9 +6,9 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "genesis-a",
   "main": "src/server.ts",
-  "compatibility_date": "2025-05-07",
+  "compatibility_date": "2024-09-23",
   "compatibility_flags": [
-    "nodejs_compat",
+    "nodejs_compat_v2",
     "nodejs_compat_populate_process_env",
   ],
   "assets": {
@@ -69,7 +69,9 @@
    * Environment Variables
    * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
    */
-  // "vars": { "MY_VARIABLE": "production_value" },
+  "vars": {
+    "ENVIRONMENT": "development",
+  },
   /**
    * Note: Use secrets to store sensitive data.
    * https://developers.cloudflare.com/workers/configuration/secrets/
@@ -86,4 +88,35 @@
    * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
    */
   // "services": [{ "binding": "MY_SERVICE", "service": "my-service" }]
+
+  /**
+   * Multiple Environment Configuration
+   * https://developers.cloudflare.com/workers/wrangler/configuration/#environments
+   */
+  "env": {
+    "staging": {
+      "name": "genesis-a-staging",
+      "vars": {
+        "ENVIRONMENT": "staging",
+      },
+      "r2_buckets": [
+        {
+          "binding": "WORKFLOW_VERSIONS",
+          "bucket_name": "genesis-workflow-versions-staging",
+        },
+      ],
+    },
+    "production": {
+      "name": "genesis-a-production",
+      "vars": {
+        "ENVIRONMENT": "production",
+      },
+      "r2_buckets": [
+        {
+          "binding": "WORKFLOW_VERSIONS",
+          "bucket_name": "genesis-workflow-versions-production",
+        },
+      ],
+    },
+  },
 }
