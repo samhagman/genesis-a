@@ -76,6 +76,7 @@ export function useNodeStatus(templateId: string): ExecutionStatus | null {
 
 // Hook for workflow actions - returns stable references
 export function useWorkflowActions() {
+  // Get actions individually to ensure they have stable references from Zustand
   return {
     setActiveInstance: useWorkflowStore((state) => state.setActiveInstance),
     clearActiveInstance: useWorkflowStore((state) => state.clearActiveInstance),
