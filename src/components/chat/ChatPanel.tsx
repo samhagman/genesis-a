@@ -21,7 +21,6 @@ import { Textarea } from "@/components/textarea/Textarea";
 import { Toggle } from "@/components/toggle/Toggle";
 import { ToolInvocationCard } from "@/components/tool-invocation-card/ToolInvocationCard";
 import { type AgentStatus, AgentStatusDisplay } from "./AgentStatusDisplay";
-import { EditModeToggle } from "./EditModeToggle";
 
 // Icon imports
 import {
@@ -43,6 +42,7 @@ export interface ChatPanelProps {
   theme: "dark" | "light";
   onThemeToggle: () => void;
   workflow?: WorkflowTemplateV2 | null;
+  selectedTemplateId?: string;
   onWorkflowUpdate?: (workflow: WorkflowTemplateV2) => void;
 }
 
@@ -50,10 +50,11 @@ export function ChatPanel({
   theme,
   onThemeToggle,
   workflow,
+  selectedTemplateId,
   onWorkflowUpdate,
 }: ChatPanelProps) {
   const [showDebug, setShowDebug] = useState(false);
-  const [editMode, setEditMode] = useState(false);
+  const editMode = false;
   const [agentStatus, setAgentStatus] = useState<AgentStatus>("idle");
   const [textareaHeight, setTextareaHeight] = useState("auto");
   const [editHistory, setEditHistory] = useState<
@@ -75,8 +76,38 @@ export function ChatPanel({
     scrollToBottom();
   }, [scrollToBottom]);
 
+  // Initialize chat context when selectedTemplateId changes
+  useEffect(() => {
+    if (selectedTemplateId) {
+      console.log("🔧 [ChatPanel] Initializing chat context with template:", selectedTemplateId);
+      
+      fetch("http://localhost:8787/api/chat/set-context", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          agent: "chat",
+          templateId: selectedTemplateId,
+        }),
+      })
+        .then(response => response.json())
+        .then(result => {
+          if (result.success) {
+            console.log("✅ [ChatPanel] Chat context set successfully:", result.message);
+          } else {
+            console.error("❌ [ChatPanel] Failed to set chat context:", result.message);
+          }
+        })
+        .catch(error => {
+          console.error("❌ [ChatPanel] Error setting chat context:", error);
+        });
+    }
+  }, [selectedTemplateId]);
+
   const agent = useAgent({
     agent: "chat",
+    host: "localhost:8787",
   });
 
   const {
@@ -199,14 +230,6 @@ export function ChatPanel({
         </div>
 
         <div className="flex items-center gap-3 mr-2">
-          <EditModeToggle
-            editMode={editMode}
-            onToggle={setEditMode}
-            disabled={!workflow}
-          />
-
-          <div className="w-px h-4 bg-neutral-300 dark:bg-neutral-600" />
-
           <div className="flex items-center gap-2">
             <Bug size={16} />
             <Toggle
@@ -497,7 +520,18 @@ export function ChatPanel({
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          console.log("🚀 [ChatPanel] Form submitted", {
+            editMode,
+            agentInput: agentInput.substring(0, 50) + (agentInput.length > 50 ? "..." : ""),
+            selectedTemplateId,
+            hasTemplateId: !!selectedTemplateId,
+            isLoading,
+            agentStatus,
+            timestamp: new Date().toISOString()
+          });
+
           if (editMode) {
+            console.log("📝 [ChatPanel] Edit mode - handling workflow edit");
             // Handle workflow editing
             if (agentInput.trim()) {
               handleWorkflowEdit(agentInput.trim());
@@ -506,14 +540,19 @@ export function ChatPanel({
               } as React.ChangeEvent<HTMLInputElement>);
             }
           } else {
-            // Handle regular chat
-            handleAgentSubmit(e, {
-              data: {
-                annotations: {
-                  hello: "world",
-                },
-              },
+            console.log("💬 [ChatPanel] Chat mode - calling handleAgentSubmit", {
+              messageLength: agentInput.length,
+              hasHandleAgentSubmit: typeof handleAgentSubmit === 'function',
+              contextAlreadySet: !!selectedTemplateId
             });
+            
+            // Assert critical conditions
+            console.assert(typeof handleAgentSubmit === 'function', '❌ handleAgentSubmit should be a function');
+            
+            // Handle regular chat - no need to pass templateId as it's already set via initialization endpoint
+            handleAgentSubmit(e);
+            
+            console.log("✅ [ChatPanel] handleAgentSubmit called successfully");
           }
           setTextareaHeight("auto");
         }}
@@ -550,8 +589,10 @@ export function ChatPanel({
                   !e.shiftKey &&
                   !e.nativeEvent.isComposing
                 ) {
+                  console.log("⌨️ [ChatPanel] Enter key pressed - submitting form");
                   e.preventDefault();
-                  handleAgentSubmit(e as unknown as React.FormEvent);
+                  // Trigger the form's onSubmit handler to ensure consistent behavior
+                  e.currentTarget.form?.requestSubmit();
                   setTextareaHeight("auto");
                 }
               }}
