@@ -68,6 +68,24 @@ export class WorkflowEditingAPI {
         return await this.handleEdit(request);
       }
 
+      // Handle OPTIONS /api/workflow/{id} - CORS preflight
+      if (pathSegments.length === 3 && request.method === "OPTIONS") {
+        return new Response(null, {
+          status: 200,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+          },
+        });
+      }
+
+      // Handle GET /api/workflow/{id} - load current workflow
+      if (pathSegments.length === 3 && request.method === "GET") {
+        const workflowId = pathSegments[2];
+        return await this.handleGetWorkflow(workflowId);
+      }
+
       if (pathSegments.length >= 4) {
         const workflowId = pathSegments[2];
 
@@ -211,6 +229,86 @@ export class WorkflowEditingAPI {
       console.error("Edit request error:", error);
       return this.errorResponse(
         "Failed to process edit request",
+        500,
+        error instanceof Error ? error.message : "Unknown error"
+      );
+    }
+  }
+
+  /**
+   * Handle GET /api/workflow/{id} - load current workflow
+   */
+  private async handleGetWorkflow(workflowId: string): Promise<Response> {
+    try {
+      console.log(`[Workflow API] Getting workflow ${workflowId}, env has R2:`, !!this.env.WORKFLOW_VERSIONS);
+      let workflow = null;
+      let source = "local";
+
+      // Try loading from R2 first (using same approach as Chat DO)
+      if (this.env.WORKFLOW_VERSIONS) {
+        const key = `workflows/${workflowId}/current.json`;
+        console.log(`[Workflow API] Attempting direct R2 load for ${workflowId} at ${key}`);
+        
+        const template = await this.env.WORKFLOW_VERSIONS.get(key);
+        console.log(`[Workflow API] R2 get result:`, { 
+          hasTemplate: !!template,
+          templateType: typeof template
+        });
+
+        if (template) {
+          try {
+            const templateText = await template.text();
+            workflow = JSON.parse(templateText);
+            source = "r2";
+            console.log(`[Workflow API] Successfully loaded from R2:`, {
+              name: workflow.name,
+              goalsCount: workflow.goals?.length || 0,
+            });
+          } catch (parseError) {
+            console.error(`[Workflow API] Failed to parse R2 template:`, parseError);
+          }
+        }
+      } else {
+        console.log(`[Workflow API] No R2 bucket available for ${workflowId}`);
+      }
+
+      // Fall back to local templates if R2 loading failed
+      if (!workflow) {
+        console.log(`[Workflow API] R2 load failed for ${workflowId}, falling back to local templates`);
+        
+        // Import local template loader
+        const { loadWorkflowTemplateSafe } = await import("../workflows");
+        const result = await loadWorkflowTemplateSafe(workflowId);
+        
+        if (result.success) {
+          workflow = result.data;
+        } else {
+          return this.errorResponse(
+            `Workflow ${workflowId} not found in R2 or local templates`,
+            404,
+            result.error.message
+          );
+        }
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        workflowId,
+        workflow,
+        source
+      }), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type",
+        },
+      });
+    } catch (error) {
+      console.error("Get workflow error:", error);
+      return this.errorResponse(
+        "Failed to retrieve workflow",
         500,
         error instanceof Error ? error.message : "Unknown error"
       );
