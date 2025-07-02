@@ -29,7 +29,11 @@ export default defineWorkspace([
     test: {
       name: "workers-unit",
       include: ["tests/**/*.test.ts"],
-      exclude: ["tests/components/**", "**/*.integration.test.ts", "**/integration-cost-money.test.ts"],
+      exclude: [
+        "tests/components/**",
+        "**/*.integration.test.ts",
+        "**/integration-cost-money.test.ts",
+      ],
       poolOptions: {
         workers: {
           wrangler: { configPath: "./wrangler.jsonc" },
