@@ -30,7 +30,7 @@ test.describe("UI Responsiveness and Console Monitoring", () => {
     ).consoleWarnings = consoleWarnings;
 
     await page.goto("/");
-    await expect(page.locator("h1")).toContainText("Genesis", {
+    await expect(page).toHaveTitle(/Genesis/, {
       timeout: 30000,
     });
   });

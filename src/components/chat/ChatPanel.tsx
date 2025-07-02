@@ -11,6 +11,7 @@ import type {
 } from "@/agents/workflowEditingAgent";
 // Workflow editing imports
 import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
+import { loadWorkflowSafe } from "@/utils/workflowApi";
 
 import { Avatar } from "@/components/avatar/Avatar";
 // Component imports
@@ -104,6 +105,62 @@ export function ChatPanel({
         });
     }
   }, [selectedTemplateId]);
+
+  // Listen for workflow update notifications via WebSocket
+  useEffect(() => {
+    if (!selectedTemplateId || !onWorkflowUpdate) {
+      return;
+    }
+
+    console.log("🔌 [ChatPanel] Setting up WebSocket listener for workflow updates");
+
+    // Create WebSocket connection to listen for workflow updates
+    const wsUrl = `ws://localhost:8787/api/agents/chat/default`;
+    const ws = new WebSocket(wsUrl);
+    
+    ws.onopen = () => {
+      console.log("✅ [ChatPanel] WebSocket connected for workflow updates");
+    };
+    
+    ws.onmessage = async (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        
+        if (message.type === "workflow_updated") {
+          console.log("📨 [ChatPanel] Received workflow_updated notification, reloading workflow");
+          
+          // Reload the current workflow
+          const { workflow: updatedWorkflow } = await loadWorkflowSafe(selectedTemplateId);
+          
+          // Update the main UI via callback
+          onWorkflowUpdate(updatedWorkflow);
+          
+          console.log("✅ [ChatPanel] Workflow updated successfully", {
+            workflowName: updatedWorkflow.name,
+            goalsCount: updatedWorkflow.goals?.length || 0
+          });
+        }
+      } catch (error) {
+        console.error("❌ [ChatPanel] Error handling WebSocket message:", error);
+      }
+    };
+    
+    ws.onerror = (error) => {
+      console.error("❌ [ChatPanel] WebSocket error:", error);
+    };
+    
+    ws.onclose = () => {
+      console.log("🔌 [ChatPanel] WebSocket connection closed");
+    };
+    
+    // Cleanup function
+    return () => {
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.close();
+        console.log("🧹 [ChatPanel] WebSocket connection cleaned up");
+      }
+    };
+  }, [selectedTemplateId, onWorkflowUpdate]);
 
   const agent = useAgent({
     agent: "chat",

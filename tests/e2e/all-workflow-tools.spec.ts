@@ -10,7 +10,7 @@ import { test, expect } from "@playwright/test";
 test.describe("All Workflow Tools via Natural Language", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
-    await expect(page.locator("h1")).toContainText("Genesis", {
+    await expect(page).toHaveTitle(/Genesis/, {
       timeout: 30000,
     });
   });

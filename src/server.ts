@@ -368,6 +368,13 @@ export class Chat extends AIChatAgent<Env> {
       );
     }
 
+    // Broadcast workflow update to all connected WebSocket clients
+    this.ctx.getWebSockets().forEach(ws => {
+      try { 
+        ws.send(JSON.stringify({ type: "workflow_updated" })); 
+      } catch {}
+    });
+
     console.log(
       `Saved workflow: ${workflow.name} (${workflow.goals.length} goals)`
     );

@@ -10,13 +10,13 @@ import { test, expect } from "@playwright/test";
 test.describe("Confirmation Workflows", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
-    await expect(page.locator("h1")).toContainText("Genesis", {
+    await expect(page).toHaveTitle(/Genesis/, {
       timeout: 30000,
     });
 
     // Create a test workflow with content for deletion tests
-    const chatInput = page.locator('[data-testid="chat-input"]');
-    const sendButton = page.locator('[data-testid="send-button"]');
+    const chatInput = page.locator('textarea[placeholder*="Send a message"]');
+    const sendButton = page.locator('button[aria-label="Send message"]');
 
     await chatInput.fill(
       'Create workflow "Deletion Test" with goal "Test Goal" and task "Test Task"'

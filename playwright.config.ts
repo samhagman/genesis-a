@@ -12,7 +12,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: "html",
+  // Generate HTML report but don't auto-open in browser to avoid tab spam during development
+  reporter: [["html", { open: "never" }]],
 
   use: {
     baseURL: "http://localhost:5175",
@@ -38,13 +39,13 @@ export default defineConfig({
 
   webServer: [
     {
-      command: "npm start",
+      command: "npm run dev:frontend",
       port: 5175,
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,
     },
     {
-      command: "npm run dev",
+      command: "npm run dev:backend",
       port: 8787,
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,

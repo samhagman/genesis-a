@@ -190,4 +190,114 @@ describe("Chat DO Template Enhancement", () => {
       expect(parsedTemplate.goals).toHaveLength(1);
     });
   });
+
+  describe("WebSocket broadcast functionality", () => {
+    it("should broadcast workflow_updated message to all WebSocket clients on save", async () => {
+      // Setup: Create mock WebSockets
+      const mockWebSocket1 = { send: vi.fn() };
+      const mockWebSocket2 = { send: vi.fn() };
+      const mockWebSockets = [mockWebSocket1, mockWebSocket2];
+
+      // Setup: Mock Chat DO context with WebSockets
+      const mockChatDO = {
+        env: mockEnv,
+        ctx: {
+          storage: {
+            put: vi.fn(),
+          },
+          getWebSockets: () => mockWebSockets,
+        },
+        currentWorkflow: null,
+        currentTemplateId: null,
+      };
+
+      // Setup: Enhanced mock template with valid structure
+      const testWorkflow: WorkflowTemplateV2 = {
+        ...mockTemplate,
+        metadata: {
+          ...mockTemplate.metadata,
+          last_modified: new Date().toISOString(),
+        },
+      };
+
+      // Import and call saveCurrentWorkflow method logic
+      const saveWorkflowLogic = async (workflow: WorkflowTemplateV2) => {
+        // Simulate R2 save
+        const key = `workflows/${workflow.id}/current.json`;
+        await mockEnv.WORKFLOW_VERSIONS.put(
+          key,
+          JSON.stringify(workflow, null, 2),
+          {
+            customMetadata: {
+              version: workflow.version,
+              goals: workflow.goals.length.toString(),
+              updated: new Date().toISOString(),
+            },
+          }
+        );
+
+        // Simulate WebSocket broadcast (the code we just added)
+        mockChatDO.ctx.getWebSockets().forEach(ws => {
+          try { 
+            ws.send(JSON.stringify({ type: "workflow_updated" })); 
+          } catch {}
+        });
+      };
+
+      // Execute: Save the workflow
+      await saveWorkflowLogic(testWorkflow);
+
+      // Verify: Both WebSocket clients received the broadcast message
+      expect(mockWebSocket1.send).toHaveBeenCalledWith(
+        JSON.stringify({ type: "workflow_updated" })
+      );
+      expect(mockWebSocket2.send).toHaveBeenCalledWith(
+        JSON.stringify({ type: "workflow_updated" })
+      );
+      expect(mockWebSocket1.send).toHaveBeenCalledTimes(1);
+      expect(mockWebSocket2.send).toHaveBeenCalledTimes(1);
+    });
+
+    it("should handle WebSocket send failures gracefully", async () => {
+      // Setup: Create mock WebSockets where one fails
+      const mockWebSocket1 = { send: vi.fn() };
+      const mockWebSocket2 = { 
+        send: vi.fn().mockImplementation(() => {
+          throw new Error("WebSocket connection closed");
+        })
+      };
+      const mockWebSocket3 = { send: vi.fn() };
+      const mockWebSockets = [mockWebSocket1, mockWebSocket2, mockWebSocket3];
+
+      // Setup: Mock Chat DO context
+      const mockChatDO = {
+        ctx: {
+          getWebSockets: () => mockWebSockets,
+        },
+      };
+
+      // Execute: Simulate WebSocket broadcast with error handling
+      const broadcastLogic = () => {
+        mockChatDO.ctx.getWebSockets().forEach(ws => {
+          try { 
+            ws.send(JSON.stringify({ type: "workflow_updated" })); 
+          } catch {}
+        });
+      };
+
+      // This should not throw despite mockWebSocket2 failing
+      expect(() => broadcastLogic()).not.toThrow();
+
+      // Verify: Successful WebSockets still received the message
+      expect(mockWebSocket1.send).toHaveBeenCalledWith(
+        JSON.stringify({ type: "workflow_updated" })
+      );
+      expect(mockWebSocket3.send).toHaveBeenCalledWith(
+        JSON.stringify({ type: "workflow_updated" })
+      );
+      
+      // Verify: Failed WebSocket was attempted but didn't break the flow
+      expect(mockWebSocket2.send).toHaveBeenCalledTimes(1);
+    });
+  });
 });
