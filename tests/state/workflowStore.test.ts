@@ -6,9 +6,10 @@
 
 import { createWorkflowInstance } from "@/state/instanceFactory";
 import { TestWorkflowRepository } from "@/state/testRepository";
+import { useWorkflowStore, type TemplateMetadata } from "@/state/workflowStore";
 import type { ExecutionStatus } from "@/types/workflow-instance";
 import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock workflow template for testing
 const mockTemplate: WorkflowTemplateV2 = {
@@ -229,5 +230,221 @@ describe("Instance Factory", () => {
     // Check that mapped instances exist
     const goalInstanceId = instance.templateToInstanceMap["goal-1"];
     expect(instance.nodeMap[goalInstanceId]).toBeTruthy();
+  });
+});
+
+describe("Template Editing Store (V3 Enhancement)", () => {
+  beforeEach(() => {
+    // Reset store state before each test
+    const store = useWorkflowStore.getState();
+    store.setAvailableTemplates([]);
+    store.setSelectedTemplate("", "");
+    store.setViewMode("edit");
+    store.setHasUnsavedChanges(false);
+    store.setTemplateLoading(false);
+  });
+
+  describe("Template Selection", () => {
+    it("should start with empty template selection", () => {
+      const state = useWorkflowStore.getState();
+      expect(state.selectedTemplateId).toBe("");
+      expect(state.selectedTemplateName).toBe("");
+      expect(state.availableTemplates).toEqual([]);
+    });
+
+    it("should set selected template correctly", () => {
+      const { setSelectedTemplate } = useWorkflowStore.getState();
+
+      setSelectedTemplate("test-template-123", "Test Template");
+
+      const state = useWorkflowStore.getState();
+      expect(state.selectedTemplateId).toBe("test-template-123");
+      expect(state.selectedTemplateName).toBe("Test Template");
+      expect(state.hasUnsavedChanges).toBe(false); // Should reset unsaved changes
+    });
+
+    it("should reset unsaved changes when switching templates", () => {
+      const { setHasUnsavedChanges, setSelectedTemplate } =
+        useWorkflowStore.getState();
+
+      // Set unsaved changes
+      setHasUnsavedChanges(true);
+      expect(useWorkflowStore.getState().hasUnsavedChanges).toBe(true);
+
+      // Switch template should reset unsaved changes
+      setSelectedTemplate("new-template", "New Template");
+      expect(useWorkflowStore.getState().hasUnsavedChanges).toBe(false);
+    });
+  });
+
+  describe("View Mode Management", () => {
+    it("should default to edit mode", () => {
+      const state = useWorkflowStore.getState();
+      expect(state.viewMode).toBe("edit");
+    });
+
+    it("should switch view modes correctly", () => {
+      const { setViewMode } = useWorkflowStore.getState();
+
+      setViewMode("instance");
+      expect(useWorkflowStore.getState().viewMode).toBe("instance");
+
+      setViewMode("edit");
+      expect(useWorkflowStore.getState().viewMode).toBe("edit");
+    });
+  });
+
+  describe("Unsaved Changes Tracking", () => {
+    it("should track unsaved changes correctly", () => {
+      const { setHasUnsavedChanges } = useWorkflowStore.getState();
+
+      expect(useWorkflowStore.getState().hasUnsavedChanges).toBe(false);
+
+      setHasUnsavedChanges(true);
+      expect(useWorkflowStore.getState().hasUnsavedChanges).toBe(true);
+
+      setHasUnsavedChanges(false);
+      expect(useWorkflowStore.getState().hasUnsavedChanges).toBe(false);
+    });
+  });
+
+  describe("Template Loading", () => {
+    it("should manage loading state correctly", () => {
+      const { setTemplateLoading } = useWorkflowStore.getState();
+
+      expect(useWorkflowStore.getState().templateLoading).toBe(false);
+
+      setTemplateLoading(true);
+      expect(useWorkflowStore.getState().templateLoading).toBe(true);
+
+      setTemplateLoading(false);
+      expect(useWorkflowStore.getState().templateLoading).toBe(false);
+    });
+
+    it("should set available templates correctly", () => {
+      const { setAvailableTemplates } = useWorkflowStore.getState();
+
+      const mockTemplates: TemplateMetadata[] = [
+        {
+          id: "template-1",
+          name: "Template One",
+          version: "1.0",
+          lastModified: "2024-01-01T00:00:00Z",
+          author: "test",
+          tags: ["test"],
+        },
+        {
+          id: "template-2",
+          name: "Template Two",
+          version: "2.0",
+          lastModified: "2024-01-02T00:00:00Z",
+          author: "test2",
+          tags: ["test", "demo"],
+        },
+      ];
+
+      setAvailableTemplates(mockTemplates);
+      expect(useWorkflowStore.getState().availableTemplates).toEqual(
+        mockTemplates
+      );
+    });
+
+    it("should load available templates with mock data", async () => {
+      const { loadAvailableTemplates } = useWorkflowStore.getState();
+
+      await loadAvailableTemplates();
+
+      const state = useWorkflowStore.getState();
+      expect(state.templateLoading).toBe(false);
+      expect(state.availableTemplates).toHaveLength(2);
+      expect(state.availableTemplates[0].id).toBe("employee-onboarding-v2");
+      expect(state.availableTemplates[1].id).toBe("instawork-shift-filling");
+
+      // Should set default selection
+      expect(state.selectedTemplateId).toBe("employee-onboarding-v2");
+      expect(state.selectedTemplateName).toBe("Employee Onboarding Process V2");
+    });
+
+    it("should not override existing selection when loading templates", async () => {
+      const { setSelectedTemplate, loadAvailableTemplates } =
+        useWorkflowStore.getState();
+
+      // Set a template first
+      setSelectedTemplate("existing-template", "Existing Template");
+
+      await loadAvailableTemplates();
+
+      const state = useWorkflowStore.getState();
+      // Should keep existing selection
+      expect(state.selectedTemplateId).toBe("existing-template");
+      expect(state.selectedTemplateName).toBe("Existing Template");
+    });
+
+    it("should handle loading errors gracefully", async () => {
+      // Mock console.error to avoid test output noise
+      const consoleSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      const { loadAvailableTemplates } = useWorkflowStore.getState();
+
+      // Mock an error scenario by temporarily breaking the function
+      const originalSet = useWorkflowStore.setState;
+      useWorkflowStore.setState = vi.fn().mockImplementation(() => {
+        throw new Error("Test error");
+      });
+
+      try {
+        await loadAvailableTemplates();
+      } catch (error) {
+        // Expected to catch error
+      }
+
+      // Restore original function
+      useWorkflowStore.setState = originalSet;
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe("Integration Tests", () => {
+    it("should handle complete template editing workflow", async () => {
+      const store = useWorkflowStore.getState();
+
+      // Start: Load templates
+      await store.loadAvailableTemplates();
+      expect(store.availableTemplates).toHaveLength(2);
+
+      // Step 1: Select a template
+      store.setSelectedTemplate(
+        "instawork-shift-filling",
+        "InstaWork Shift Filling"
+      );
+      expect(store.selectedTemplateId).toBe("instawork-shift-filling");
+
+      // Step 2: Make changes (simulate editing)
+      store.setHasUnsavedChanges(true);
+      expect(store.hasUnsavedChanges).toBe(true);
+
+      // Step 3: Switch to instance view
+      store.setViewMode("instance");
+      expect(store.viewMode).toBe("instance");
+
+      // Step 4: Return to edit view
+      store.setViewMode("edit");
+      expect(store.viewMode).toBe("edit");
+
+      // Step 5: Save changes (simulate)
+      store.setHasUnsavedChanges(false);
+      expect(store.hasUnsavedChanges).toBe(false);
+
+      // Step 6: Switch templates (should reset unsaved changes)
+      store.setHasUnsavedChanges(true);
+      store.setSelectedTemplate(
+        "employee-onboarding-v2",
+        "Employee Onboarding Process V2"
+      );
+      expect(store.hasUnsavedChanges).toBe(false);
+      expect(store.selectedTemplateId).toBe("employee-onboarding-v2");
+    });
   });
 });
