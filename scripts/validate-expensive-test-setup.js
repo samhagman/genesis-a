@@ -17,20 +17,19 @@ function checkFile(filePath, description) {
   if (fs.existsSync(filePath)) {
     console.log(`✅ ${description} found`);
     return true;
-  } else {
-    console.log(`❌ ${description} missing`);
-    return false;
   }
+  console.log(`❌ ${description} missing`);
+  return false;
 }
 
 function checkEnvVar(varName, description) {
   const devVarsPath = path.join(projectRoot, ".dev.vars");
   if (fs.existsSync(devVarsPath)) {
     const content = fs.readFileSync(devVarsPath, "utf8");
-    const hasVar = content.includes(varName + "=");
+    const hasVar = content.includes(`${varName}=`);
     const isNotPlaceholder =
-      !content.includes(varName + "=your-") &&
-      !content.includes(varName + "=sk-your-");
+      !content.includes(`${varName}=your-`) &&
+      !content.includes(`${varName}=sk-your-`);
     if (hasVar && isNotPlaceholder) {
       console.log(`✅ ${description} configured in .dev.vars`);
       return true;
@@ -44,7 +43,7 @@ function checkBinding(bindingName, description) {
   const wranglerPath = path.join(projectRoot, "wrangler.jsonc");
   if (fs.existsSync(wranglerPath)) {
     const content = fs.readFileSync(wranglerPath, "utf8");
-    if (content.includes('"' + bindingName + '"')) {
+    if (content.includes(`"${bindingName}"`)) {
       console.log(`✅ ${description} binding configured`);
       return true;
     }

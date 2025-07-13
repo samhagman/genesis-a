@@ -1,7 +1,5 @@
 import { type Schedule, routeAgentRequest } from "agents";
 
-import { unstable_getSchedulePrompt } from "agents/schedule";
-
 import { createOpenAI } from "@ai-sdk/openai";
 import { AIChatAgent } from "agents/ai-chat-agent";
 import {
@@ -9,7 +7,6 @@ import {
   type StreamTextOnFinishCallback,
   type ToolSet,
   createDataStreamResponse,
-  generateId,
   streamText,
 } from "ai";
 import {
@@ -43,22 +40,32 @@ export class Chat extends AIChatAgent<Env> {
   private currentWorkflow: WorkflowTemplateV2 | null = null;
   private workflowLoaded = false;
   private currentTemplateId: string | null = null;
+  // Explicitly store the state since the base class might not expose it
+  private doState: DurableObjectState;
 
   constructor(state: DurableObjectState, env: Env) {
     super(state, env);
-    
+    // Store the state explicitly
+    this.doState = state;
+
     console.log("🏗️ [Chat DO] Constructor called", {
       hasApiKey: !!this.env.OPENAI_API_KEY,
       apiKeyLength: this.env.OPENAI_API_KEY?.length || 0,
       environment: this.env.ENVIRONMENT,
-      stateId: state.id?.toString() || 'unknown',
-      timestamp: new Date().toISOString()
+      stateId: state.id?.toString() || "unknown",
+      timestamp: new Date().toISOString(),
     });
-    
+
     // Assert critical conditions
-    console.assert(this.env.OPENAI_API_KEY, '❌ OPENAI_API_KEY should be available in env');
-    console.assert(typeof this.env.OPENAI_API_KEY === 'string', '❌ OPENAI_API_KEY should be a string');
-    
+    console.assert(
+      this.env.OPENAI_API_KEY,
+      "❌ OPENAI_API_KEY should be available in env"
+    );
+    console.assert(
+      typeof this.env.OPENAI_API_KEY === "string",
+      "❌ OPENAI_API_KEY should be a string"
+    );
+
     try {
       // Initialize the AI model with proper API key access
       const openaiProvider = createOpenAI({
@@ -66,570 +73,1107 @@ export class Chat extends AIChatAgent<Env> {
         // If you use a Cloudflare AI Gateway, you can add its URL here:
         // baseURL: this.env.GATEWAY_BASE_URL,
       });
-      
+
       console.log("🤖 [Chat DO] Creating OpenAI model with gpt-4o");
       // Corrected model name from "gpt-4o-2024-11-20" to "gpt-4o"
       this.model = openaiProvider("gpt-4o");
-      
+
       console.log("✅ [Chat DO] AI model initialized successfully", {
         modelType: typeof this.model,
-        hasModel: !!this.model
+        hasModel: !!this.model,
       });
-      
+
       // Assert model initialization
-      console.assert(this.model, '❌ AI model should be initialized');
-      
+      console.assert(this.model, "❌ AI model should be initialized");
     } catch (error) {
       console.error("❌ [Chat DO] Failed to initialize AI model:", error);
       throw error;
     }
-    
-    // ❌ REMOVED: this.initializeWorkflowState(); 
+
+    // ❌ REMOVED: this.initializeWorkflowState();
     // This async call was causing a race condition - moved to entry point methods
   }
 
-  private async initializeWorkflowState() {
-    try {
-      console.log("🔄 [Chat DO] Initializing workflow state", {
-        hasState: !!this.state,
-        stateType: typeof this.state,
-        hasStorage: !!(this.state as any)?.storage,
-        stateKeys: this.state ? Object.keys(this.state) : []
-      });
-
-      // @ts-ignore - Durable Object storage typing issue
-      const storedWorkflow = await this.ctx.storage.get("currentWorkflow");
-      // @ts-ignore - Durable Object storage typing issue
-      const storedTemplateId =
-        await this.ctx.storage.get("currentTemplateId");
-
-      this.currentWorkflow = storedWorkflow
-        ? (storedWorkflow as WorkflowTemplateV2)
-        : null;
-      this.currentTemplateId = storedTemplateId
-        ? (storedTemplateId as string)
-        : null;
-      this.workflowLoaded = true;
-
-      if (this.currentWorkflow) {
-        console.log(
-          `Loaded workflow: ${this.currentWorkflow.name} (${this.currentWorkflow.goals.length} goals)`
-        );
-      }
-
-      if (this.currentTemplateId) {
-        console.log(`Restored template context: ${this.currentTemplateId}`);
-      }
-    } catch (error) {
-      console.warn("Failed to load workflow state:", error);
-      this.currentWorkflow = null;
-      this.currentTemplateId = null;
-      this.workflowLoaded = true;
-    }
-  }
-
-  getCurrentWorkflow(): WorkflowTemplateV2 | null {
-    return this.currentWorkflow;
-  }
-
   /**
-   * Initialize Chat DO with specific template context for V3 template editing
-   * @param templateId - The ID of the template to load and set as current context
+   * Ensure the workflow state is initialized. This is called lazily
+   * from methods that depend on the state being loaded.
    */
-  async initializeWithTemplate(templateId: string): Promise<void> {
+  private async ensureInitialized(): Promise<void> {
+    // If already loaded, do nothing (idempotent)
+    if (this.workflowLoaded) {
+      return;
+    }
+
+    console.log(
+      "🔄 [Chat DO] State not initialized. Running initialization logic."
+    );
+
     try {
-      console.log("🔄 [Chat DO] initializeWithTemplate starting", {
-        templateId,
-        hasWorkflowVersions: !!this.env.WORKFLOW_VERSIONS,
-        envKeys: Object.keys(this.env),
-        localTemplatesAvailable: Object.keys(LOCAL_TEMPLATES),
-        hasTargetTemplate: !!LOCAL_TEMPLATES[templateId]
-      });
-
-      this.currentTemplateId = templateId;
-      let templateData: WorkflowTemplateV2 | null = null;
-
-      // 1. Try loading from R2 if available
-      if (this.env.WORKFLOW_VERSIONS) {
-        const key = `workflows/${templateId}/current.json`;
-        console.log("📂 [Chat DO] Attempting to load from R2", { key });
-        
-        const template = await this.env.WORKFLOW_VERSIONS.get(key);
-        console.log("📂 [Chat DO] R2 get result", { 
-          hasTemplate: !!template,
-          templateType: typeof template
-        });
-
-        if (template) {
-          console.log("📝 [Chat DO] Parsing template JSON from R2");
-          templateData = (await template.json()) as WorkflowTemplateV2;
-          console.log("📝 [Chat DO] Template parsed from R2", {
-            name: templateData.name,
-            goalsCount: templateData.goals?.length || 0,
-            hasMetadata: !!templateData.metadata
-          });
-        } else {
-          console.warn(`[Chat DO] Template ${templateId} not found in R2 storage. Falling back to local.`);
-        }
+      // Try to restore saved template ID from durable storage
+      const savedTemplateId =
+        await this.doState.storage.get<string>("currentTemplateId");
+      if (savedTemplateId) {
+        console.log(
+          "📦 [Chat DO] Found saved template ID, initializing:",
+          savedTemplateId
+        );
+        // This call will set workflowLoaded = true upon success
+        await this.initializeWithTemplate(savedTemplateId);
       } else {
         console.warn(
-          "[Chat DO] WORKFLOW_VERSIONS R2 bucket not available. Using local templates as fallback."
+          "📭 [Chat DO] No saved template ID. Agent may have limited context."
         );
-      }
-
-      // 2. Fallback to local templates if not loaded from R2
-      if (!templateData) {
-        console.log("🔄 [Chat DO] Attempting to load from local templates");
-        templateData = LOCAL_TEMPLATES[templateId] || null;
-        
-        if (templateData) {
-          console.log("📁 [Chat DO] Found in local templates", {
-            name: templateData.name,
-            goalsCount: templateData.goals?.length || 0
-          });
-        } else {
-          console.error(`❌ [Chat DO] Template ${templateId} not found in any source.`);
-        }
-      }
-
-      // 3. Validate and set the workflow state
-      if (templateData) {
-        const validationResult = validateWorkflowV2(templateData);
-        console.log("✅ [Chat DO] Validation result", {
-          isValid: validationResult.isValid,
-          errorCount: validationResult.errors?.length || 0
-        });
-        
-        if (validationResult.isValid) {
-          this.currentWorkflow = templateData;
-          console.log(
-            `✅ [Chat DO] Successfully initialized with template: ${templateData.name} (${templateData.goals.length} goals)`
-          );
-        } else {
-          console.error(
-            `❌ [Chat DO] Template validation failed for ${templateId}:`,
-            validationResult.errors
-          );
-          this.currentWorkflow = null;
-        }
-      } else {
-        this.currentWorkflow = null;
-      }
-
-      this.workflowLoaded = true;
-
-      // Persist template ID and the loaded workflow to durable storage for session continuity
-      try {
-        // @ts-ignore - Durable Object storage typing issue
-        await this.ctx.storage.put("currentTemplateId", templateId);
-        // @ts-ignore - Durable Object storage typing issue  
-        await this.ctx.storage.put("currentWorkflow", this.currentWorkflow);
-        console.log("✅ [Chat DO] Persisted to storage", { templateId, hasWorkflow: !!this.currentWorkflow });
-      } catch (storageError) {
-        console.warn("⚠️ [Chat DO] Failed to persist to storage:", storageError);
+        // Optional: Load a default template if none is set
       }
     } catch (error) {
       console.error(
-        `Failed to initialize Chat DO with template ${templateId}:`,
+        "❌ [Chat DO] CRITICAL: Failed to initialize workflow state:",
         error
       );
-      this.currentWorkflow = null;
-      this.currentTemplateId = null;
+      // Re-throwing to signal fatal state corruption
+      throw new Error("Failed to initialize agent state.");
+    }
+  }
+
+  /**
+   * Initialize the Chat DO with a specific workflow template
+   * This method loads the template and sets up the AI context
+   */
+  async initializeWithTemplate(templateId: string) {
+    console.log("🔧 [Chat DO] Initializing with template:", templateId, {
+      previousTemplateId: this.currentTemplateId,
+      workflowLoaded: this.workflowLoaded,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Skip if already loaded with same template
+    if (this.currentTemplateId === templateId && this.workflowLoaded) {
+      console.log(
+        "⚡ [Chat DO] Template already loaded, skipping:",
+        templateId
+      );
+      return;
+    }
+
+    try {
+      // First try R2 storage
+      let workflow: WorkflowTemplateV2 | null = null;
+
+      if (this.env.WORKFLOW_VERSIONS) {
+        try {
+          const r2Key = `workflows/${templateId}.json`;
+          console.log("📚 [Chat DO] Attempting to load from R2:", r2Key);
+          const r2Object = await this.env.WORKFLOW_VERSIONS.get(r2Key);
+
+          if (r2Object) {
+            const workflowData = await r2Object.json<WorkflowTemplateV2>();
+            if (validateWorkflowV2(workflowData)) {
+              workflow = workflowData;
+              console.log("✅ [Chat DO] Loaded workflow from R2:", {
+                templateId,
+                workflowName: workflow.name,
+                goalsCount: workflow.goals?.length || 0,
+              });
+            } else {
+              console.error("❌ [Chat DO] Invalid workflow data from R2");
+            }
+          } else {
+            console.log("❌ [Chat DO] Workflow not found in R2:", r2Key);
+          }
+        } catch (r2Error) {
+          console.error("❌ [Chat DO] R2 loading failed:", r2Error);
+        }
+      } else {
+        console.warn("⚠️ [Chat DO] R2 bucket not configured");
+      }
+
+      // Fall back to local templates if R2 fails
+      if (!workflow && LOCAL_TEMPLATES[templateId]) {
+        workflow = LOCAL_TEMPLATES[templateId];
+        console.log("📂 [Chat DO] Loaded workflow from local fallback:", {
+          templateId,
+          workflowName: workflow.name,
+          goalsCount: workflow.goals?.length || 0,
+        });
+      }
+
+      if (!workflow) {
+        throw new Error(
+          `Workflow template not found: ${templateId} (tried R2 and local)`
+        );
+      }
+
+      // Store the workflow in memory and state
+      this.currentWorkflow = workflow;
+      this.currentTemplateId = templateId;
       this.workflowLoaded = true;
+
+      // Persist the current template ID
+      await this.doState.storage.put("currentTemplateId", templateId);
+
+      console.log("✅ [Chat DO] Successfully initialized with template:", {
+        templateId,
+        workflowName: workflow.name,
+        workflowDescription: workflow.objective,
+        goalsCount: workflow.goals?.length || 0,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Clear chat history when switching templates (optional)
+      // await this.doState.storage.delete("messages");
+    } catch (error) {
+      console.error(
+        "❌ [Chat DO] Failed to initialize with template:",
+        templateId,
+        error
+      );
+      this.workflowLoaded = false;
+      throw error;
     }
   }
 
   /**
-   * Get the currently loaded template ID
+   * Override the fetch method to handle additional internal routes
    */
-  getCurrentTemplateId(): string | null {
-    return this.currentTemplateId;
-  }
-
-  /**
-   * Handle internal requests to the Chat DO, including context setting
-   */
-  async fetch(request: Request): Promise<Response> {
-    // ✅ ADD INITIALIZATION GUARD to ensure state is loaded before any operation
-    if (!this.workflowLoaded) {
-      console.log("⏳ [Chat DO] Fetch - initializing workflow state");
-      await this.initializeWorkflowState();
-    }
+  async fetch(request: Request) {
+    console.log("🌐 [Chat DO] Fetch called", {
+      url: request.url,
+      method: request.method,
+      // biome-ignore lint/suspicious/noExplicitAny: Headers.entries() exists but TypeScript types are incomplete
+      headers: Object.fromEntries((request.headers as any).entries()),
+      hasCurrentWorkflow: !!this.currentWorkflow,
+      currentTemplateId: this.currentTemplateId,
+      timestamp: new Date().toISOString(),
+    });
 
     const url = new URL(request.url);
-    
-    console.log("🔧 [Chat DO] Internal fetch called", {
-      pathname: url.pathname,
-      method: request.method,
-      workflowLoaded: this.workflowLoaded
-    });
-    
+
+    // Handle internal debug requests
+    if (url.pathname === "/_internal/debug-state") {
+      if (request.method !== "GET") {
+        return new Response("Method Not Allowed", { status: 405 });
+      }
+
+      // Ensure state is initialized before gathering debug info
+      await this.ensureInitialized();
+
+      const debugInfo = {
+        currentTemplateId: this.currentTemplateId,
+        workflowLoaded: this.workflowLoaded,
+        hasCurrentWorkflow: !!this.currentWorkflow,
+        workflowName: this.currentWorkflow?.name || null,
+        workflowGoalsCount: this.currentWorkflow?.goals?.length || 0,
+        hasModel: !!this.model,
+        modelType: typeof this.model,
+        environment: this.env.ENVIRONMENT,
+        hasOpenAIKey: !!this.env.OPENAI_API_KEY,
+        stateId: this.doState.id?.toString() || "unknown",
+        timestamp: new Date().toISOString(),
+      };
+
+      console.log("🔍 [Chat DO] Debug state requested:", debugInfo);
+      return Response.json(debugInfo);
+    }
+
+    // Handle internal clear history requests
+    if (url.pathname === "/_internal/clear-history") {
+      if (request.method !== "POST") {
+        return new Response("Method Not Allowed", { status: 405 });
+      }
+
+      try {
+        console.log("🧹 [Chat DO] Clearing message history");
+        console.log(
+          "🧹 [Chat DO] Messages before clear:",
+          this.messages?.length || 0
+        );
+
+        // CRITICAL: Clear messages from the SQL table
+        // The base class AIChatAgent stores messages in cf_ai_chat_agent_messages table
+        try {
+          console.log(
+            "🧹 [Chat DO] Deleting messages from SQL table cf_ai_chat_agent_messages"
+          );
+          // Access the sql method from the base class
+          // The parent class uses this.sql`delete from cf_ai_chat_agent_messages`
+          if (this.sql) {
+            this.sql`delete from cf_ai_chat_agent_messages`;
+            console.log("✅ [Chat DO] SQL table cleared successfully");
+          } else {
+            console.warn(
+              "⚠️ [Chat DO] SQL method not available on this instance"
+            );
+          }
+        } catch (sqlError) {
+          console.error("❌ [Chat DO] Error clearing SQL table:", sqlError);
+        }
+
+        // Clear our in-memory messages
+        this.messages = [];
+
+        // Also clear any Durable Object storage that might be used
+        if (this.doState?.storage) {
+          const keysBefore = await this.doState.storage.list();
+          console.log(
+            "🧹 [Chat DO] Storage keys before clear:",
+            Array.from(keysBefore.keys())
+          );
+
+          // Delete all keys from storage to be thorough
+          for (const key of keysBefore.keys()) {
+            await this.doState.storage.delete(key);
+            console.log(`🧹 [Chat DO] Deleted storage key: ${key}`);
+          }
+
+          const keysAfter = await this.doState.storage.list();
+          console.log(
+            "🧹 [Chat DO] Storage keys after clear:",
+            Array.from(keysAfter.keys())
+          );
+        }
+
+        console.log("✅ [Chat DO] Message history cleared successfully");
+        console.log(
+          "✅ [Chat DO] Messages after clear:",
+          this.messages?.length || 0
+        );
+        return Response.json({ success: true, messagesCleared: true });
+      } catch (error) {
+        console.error("❌ [Chat DO] Failed to clear history:", error);
+        return Response.json(
+          {
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          { status: 500 }
+        );
+      }
+    }
+
     // Handle internal context setting requests
     if (url.pathname === "/_internal/set-context") {
       if (request.method !== "POST") {
         return new Response("Method Not Allowed", { status: 405 });
       }
-      
+
       try {
-        const { templateId } = await request.json();
-        
+        const { templateId } = (await request.json()) as { templateId: string };
+
         console.log("🔧 [Chat DO] Setting context to template:", templateId);
-        
+
         if (typeof templateId === "string" && templateId.length > 0) {
           await this.initializeWithTemplate(templateId);
           console.log("✅ [Chat DO] Context set successfully to:", templateId);
           return new Response("Context set successfully", { status: 200 });
-        } else {
-          console.error("❌ [Chat DO] Invalid templateId:", templateId);
-          return new Response("Invalid templateId", { status: 400 });
         }
+        return new Response("Invalid templateId", { status: 400 });
       } catch (error) {
-        console.error("❌ [Chat DO] Error setting context:", error);
+        console.error("❌ [Chat DO] Failed to set context:", error);
         return new Response("Internal Server Error", { status: 500 });
       }
     }
 
-    // Handle debug state requests
-    if (url.pathname === "/_internal/debug-state") {
-      if (request.method !== "GET") {
-        return new Response("Method Not Allowed", { status: 405 });
-      }
-      
-      try {
-        const debugInfo = {
-          workflowLoaded: this.workflowLoaded,
-          currentTemplateId: this.currentTemplateId,
-          hasCurrentWorkflow: !!this.currentWorkflow,
-          workflowName: this.currentWorkflow?.name || null,
-          workflowGoalsCount: this.currentWorkflow?.goals?.length || 0,
-          workflowVersion: this.currentWorkflow?.version || null,
-          hasEnvWorkflowVersions: !!this.env.WORKFLOW_VERSIONS,
-          hasEnvOpenAI: !!this.env.OPENAI_API_KEY,
-          localTemplatesAvailable: Object.keys(LOCAL_TEMPLATES),
-          instanceIdFromDO: this.state?.id?.toString() || 'unknown',
-          timestamp: new Date().toISOString()
-        };
-        
-        return Response.json(debugInfo);
-      } catch (error) {
-        return Response.json({ 
-          error: "Debug state failed", 
-          message: error.message,
-          timestamp: new Date().toISOString()
-        }, { status: 500 });
-      }
+    // Handle WebSocket upgrade
+    if (request.headers.get("Upgrade") === "websocket") {
+      console.log("🔌 [Chat DO] WebSocket upgrade requested", {
+        hasModel: !!this.model,
+        hasCurrentWorkflow: !!this.currentWorkflow,
+        currentTemplateId: this.currentTemplateId,
+        timestamp: new Date().toISOString(),
+      });
+
+      // No need to initialize here - onChatMessage will handle it lazily
     }
-    
-    // Fallback to the default agent fetch handler
-    return super.fetch ? super.fetch(request) : new Response("Not Found", { status: 404 });
+
+    // Call parent class fetch for normal agent operations
+    const response = await super.fetch(request);
+
+    console.log("🔄 [Chat DO] Parent fetch completed", {
+      status: response.status,
+      statusText: response.statusText,
+      hasBody: !!response.body,
+      // biome-ignore lint/suspicious/noExplicitAny: Headers.entries() exists but TypeScript types are incomplete
+      headers: Object.fromEntries((response.headers as any).entries()),
+    });
+
+    return response;
   }
 
+  get id() {
+    return this.doState.id.toString();
+  }
+
+  getModel() {
+    console.log("🤖 [Chat DO] getModel called", {
+      hasModel: !!this.model,
+      modelType: typeof this.model,
+      hasCurrentWorkflow: !!this.currentWorkflow,
+      workflowGoalsCount: this.currentWorkflow?.goals?.length || 0,
+      instanceId: "durable-object-instance",
+      timestamp: new Date().toISOString(),
+    });
+
+    // Assert critical conditions
+    console.assert(
+      this.model,
+      "❌ Model should be initialized before getModel is called"
+    );
+    console.assert(
+      this.currentWorkflow,
+      "⚠️ Current workflow should be loaded before getModel is called"
+    );
+
+    return this.model;
+  }
+
+  getTools() {
+    console.log("🛠️ [Chat DO] getTools called", {
+      hasCurrentWorkflow: !!this.currentWorkflow,
+      workflowName: this.currentWorkflow?.name,
+      goalsCount: this.currentWorkflow?.goals?.length || 0,
+      timestamp: new Date().toISOString(),
+    });
+
+    return tools;
+  }
+
+  async onToolCall({
+    context,
+    toolCall,
+    state,
+  }: {
+    context?: ToolSet;
+    toolCall: { toolName: string; args: Record<string, unknown> };
+    state: {
+      messages: Array<{ role: string; content: string }>;
+      userId?: string;
+    };
+  }) {
+    console.log("🔧 [Chat DO] onToolCall:", {
+      toolName: toolCall.toolName,
+      args: toolCall.args,
+      hasContext: !!context,
+      hasCurrentWorkflow: !!this.currentWorkflow,
+      messagesCount: state.messages?.length || 0,
+      userId: state.userId,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Return execution object if provided by context
+    return executions;
+  }
+
+  // biome-ignore lint/suspicious/noExplicitAny: Complex type mismatch with streamText onFinish callback
+  async onFinish(params: any) {
+    const { text, finishReason, toolCalls, toolResults, usage, warnings } =
+      params;
+    console.log("🏁 [Chat DO] onFinish called", {
+      responseLength: text?.length || 0,
+      finishReason,
+      toolCallsCount: toolCalls?.length || 0,
+      toolResultsCount: toolResults?.length || 0,
+      totalTokens: usage?.totalTokens || 0,
+      warningsCount: warnings?.length || 0,
+      hasCurrentWorkflow: !!this.currentWorkflow,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Process any tool calls if needed
+    if (toolCalls && toolCalls.length > 0) {
+      // TODO: Fix processToolCalls call - it expects an object with messages, dataStream, tools, executions
+      // const processedResults = await processToolCalls(
+      //   toolCalls,
+      //   this.currentWorkflow
+      // );
+      console.log("✅ [Chat DO] Tool calls found but not processed:", {
+        toolCallsCount: toolCalls.length,
+      });
+    }
+
+    // Broadcast workflow update to all connected WebSocket clients
+    for (const ws of this.ctx.getWebSockets()) {
+      try {
+        ws.send(JSON.stringify({ type: "workflow_updated" }));
+      } catch (error) {
+        console.error("❌ [Chat DO] Failed to send WebSocket update:", error);
+      }
+    }
+  }
+
+  /**
+   * Get the current workflow being edited
+   * This method is required by the workflow tools
+   */
+  getCurrentWorkflow(): WorkflowTemplateV2 | null {
+    console.log("📋 [Chat DO] getCurrentWorkflow called", {
+      hasCurrentWorkflow: !!this.currentWorkflow,
+      workflowName: this.currentWorkflow?.name,
+      currentTemplateId: this.currentTemplateId,
+      timestamp: new Date().toISOString(),
+    });
+
+    return this.currentWorkflow;
+  }
+
+  /**
+   * Save the current workflow being edited
+   * This method is required by the workflow tools
+   */
   async saveCurrentWorkflow(workflow: WorkflowTemplateV2): Promise<void> {
-    // Validate workflow before saving (following Cloudflare best practices)
-    const validationResult = validateWorkflowV2(workflow);
-    if (!validationResult.isValid) {
-      const errorMessages = validationResult.errors
-        .map((e) => e.message)
-        .join(", ");
-      throw new Error(`Workflow validation failed: ${errorMessages}`);
-    }
+    console.log("💾 [Chat DO] saveCurrentWorkflow called", {
+      workflowId: workflow.id,
+      workflowName: workflow.name,
+      goalsCount: workflow.goals?.length || 0,
+      timestamp: new Date().toISOString(),
+    });
 
-    // Update last modified timestamp
-    workflow.metadata.last_modified = new Date().toISOString();
-
-    this.currentWorkflow = workflow;
-    // Update template ID to match the saved workflow
-    this.currentTemplateId = workflow.id;
-
-    // Save to storage
     try {
-      // @ts-ignore - Durable Object storage typing issue
-      await this.ctx.storage.put("currentWorkflow", workflow);
-      // @ts-ignore - Durable Object storage typing issue
-      await this.ctx.storage.put("currentTemplateId", workflow.id);
-      console.log("✅ [Chat DO] Workflow saved to storage", { workflowId: workflow.id, goals: workflow.goals.length });
-    } catch (storageError) {
-      console.warn("⚠️ [Chat DO] Failed to save workflow to storage:", storageError);
+      // Validate workflow before saving
+      if (!validateWorkflowV2(workflow)) {
+        throw new Error("Invalid workflow structure");
+      }
+
+      // Update last modified timestamp
+      if (!workflow.metadata) {
+        workflow.metadata = {
+          author: "system",
+          created_at: new Date().toISOString(),
+          last_modified: new Date().toISOString(),
+          tags: [],
+        };
+      }
+      workflow.metadata.last_modified = new Date().toISOString();
+
+      // Store in memory
+      this.currentWorkflow = workflow;
+      this.currentTemplateId = workflow.id;
+      this.workflowLoaded = true;
+
+      // Persist to durable storage
+      await this.doState.storage.put("currentWorkflow", workflow);
+      await this.doState.storage.put("currentTemplateId", workflow.id);
+
+      // Also save to R2 for persistence and versioning
+      if (this.env.WORKFLOW_VERSIONS) {
+        const key = `workflows/${workflow.id}.json`;
+        await this.env.WORKFLOW_VERSIONS.put(
+          key,
+          JSON.stringify(workflow, null, 2),
+          {
+            httpMetadata: {
+              contentType: "application/json",
+            },
+            customMetadata: {
+              workflowId: workflow.id,
+              workflowName: workflow.name,
+              version: workflow.version || "1.0",
+              goalsCount: workflow.goals?.length.toString() || "0",
+              updated: new Date().toISOString(),
+            },
+          }
+        );
+        console.log(`✅ [Chat DO] Workflow saved to R2: ${key}`);
+      }
+
+      console.log("✅ [Chat DO] Workflow saved successfully", {
+        workflowId: workflow.id,
+        workflowName: workflow.name,
+        goalsCount: workflow.goals?.length || 0,
+      });
+    } catch (error) {
+      console.error("❌ [Chat DO] Failed to save workflow:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Schedule a task for future execution
+   * This method is required by the scheduling tools
+   */
+  async schedule<T = string>(
+    when: Date | number | string,
+    callback: keyof this,
+    payload?: T
+  ): Promise<Schedule<T>> {
+    console.log("⏰ [Chat DO] schedule called", {
+      when: typeof when === "object" ? when.toISOString() : when,
+      callback: String(callback),
+      hasPayload: !!payload,
+      timestamp: new Date().toISOString(),
+    });
+
+    try {
+      // Call the parent class implementation
+      const schedule = await super.schedule(when, callback, payload);
+      console.log("✅ [Chat DO] Task scheduled successfully", {
+        scheduleId: schedule.id,
+        callback: String(callback),
+        when: typeof when === "object" ? when.toISOString() : when,
+      });
+      return schedule;
+    } catch (error) {
+      console.error("❌ [Chat DO] Failed to schedule task:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all scheduled tasks
+   * This method is required by the scheduling tools
+   */
+  getSchedules<T = string>(criteria?: {
+    id?: string;
+    type?: "scheduled" | "delayed" | "cron";
+    timeRange?: { start?: Date; end?: Date };
+  }): Schedule<T>[] {
+    console.log("📋 [Chat DO] getSchedules called", {
+      hasCriteria: !!criteria,
+      criteria,
+      timestamp: new Date().toISOString(),
+    });
+
+    try {
+      const schedules = super.getSchedules(criteria) as Schedule<T>[];
+      console.log("✅ [Chat DO] Retrieved schedules successfully", {
+        schedulesCount: schedules?.length || 0,
+      });
+      return schedules;
+    } catch (error) {
+      console.error("❌ [Chat DO] Failed to get schedules:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cancel a scheduled task by ID
+   * This method is required by the scheduling tools
+   */
+  async cancelSchedule(taskId: string): Promise<boolean> {
+    console.log("❌ [Chat DO] cancelSchedule called", {
+      taskId,
+      timestamp: new Date().toISOString(),
+    });
+
+    try {
+      const success = await super.cancelSchedule(taskId);
+      console.log("✅ [Chat DO] Schedule canceled successfully", {
+        taskId,
+        success,
+      });
+      return success;
+    } catch (error) {
+      console.error("❌ [Chat DO] Failed to cancel schedule:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Execute a scheduled task - called by the scheduler
+   * This method is called when a scheduled task executes
+   */
+  async executeTask(description: string): Promise<void> {
+    console.log("⚡ [Chat DO] executeTask called", {
+      description,
+      timestamp: new Date().toISOString(),
+    });
+
+    try {
+      // For now, just log the task execution
+      // In the future, this could send messages or perform other actions
+      console.log("✅ [Chat DO] Scheduled task executed:", description);
+    } catch (error) {
+      console.error("❌ [Chat DO] Failed to execute scheduled task:", error);
+      throw error;
+    }
+  }
+
+  async getSystemPrompt() {
+    // Ensure state is initialized before proceeding
+    await this.ensureInitialized();
+
+    console.log("📝 [Chat DO] getSystemPrompt called", {
+      hasCurrentWorkflow: !!this.currentWorkflow,
+      workflowName: this.currentWorkflow?.name,
+      currentTemplateId: this.currentTemplateId,
+      goalsCount: this.currentWorkflow?.goals?.length || 0,
+      timestamp: new Date().toISOString(),
+    });
+
+    if (!this.currentWorkflow) {
+      console.warn(
+        "⚠️ [Chat DO] No workflow loaded, using default system prompt"
+      );
+      return "You are a helpful AI assistant that can view and help manage workflow templates.";
     }
 
-    // Also save to R2 for persistence and versioning
-    if (this.env.WORKFLOW_VERSIONS) {
-      const key = `workflows/${workflow.id}/current.json`;
-      await this.env.WORKFLOW_VERSIONS.put(
-        key,
-        JSON.stringify(workflow, null, 2),
+    // Create a detailed system prompt that includes workflow context
+    const prompt = `You are an AI assistant helping with the "${this.currentWorkflow.name}" workflow template.
+
+Workflow Description: ${this.currentWorkflow.objective || "No description provided"}
+
+This workflow has ${this.currentWorkflow.goals?.length || 0} goals:
+${
+  this.currentWorkflow.goals
+    ?.map((goal, idx) => `${idx + 1}. ${goal.name}: ${goal.description}`)
+    .join("\n") || "No goals defined"
+}
+
+You can help users understand the workflow, edit it, and answer questions about its structure and purpose.
+
+When the user asks about the workflow, you have access to tools that let you:
+- View the current workflow structure
+- Add, edit, or delete goals
+- Manage constraints, policies, tasks, and forms
+- Analyze workflow patterns
+
+Always be helpful and provide clear explanations about the workflow components.`;
+
+    console.log("✅ [Chat DO] Generated system prompt", {
+      promptLength: prompt.length,
+      workflowName: this.currentWorkflow.name,
+    });
+
+    return prompt;
+  }
+
+  /**
+   * Handle incoming chat messages. This is the core method required by AIChatAgent.
+   * It processes user messages and returns an AI response stream.
+   *
+   * Expected flow:
+   * 1. AIChatAgent base class receives WebSocket message
+   * 2. Base class parses message and adds to this.messages
+   * 3. Base class calls this method with onFinish callback
+   * 4. We process messages and stream response
+   * 5. We call onFinish when done
+   */
+  async onChatMessage(
+    onFinish: StreamTextOnFinishCallback<ToolSet>,
+    options?: { abortSignal?: AbortSignal }
+  ) {
+    console.log("💬 [Chat DO] ========== ONCHATMESSAGE ENTRY ==========");
+    console.log("💬 [Chat DO] onChatMessage called with parameters:", {
+      hasOnFinish: !!onFinish,
+      onFinishType: typeof onFinish,
+      hasOptions: !!options,
+      hasAbortSignal: !!options?.abortSignal,
+      timestamp: new Date().toISOString(),
+    });
+
+    // ASSERTION 1: Verify onFinish callback is provided
+    console.assert(
+      typeof onFinish === "function",
+      "❌ ASSERTION FAILED: onFinish must be a function"
+    );
+
+    // ASSERTION 2: Verify critical components are initialized
+    console.log("🔍 [Chat DO] Checking component initialization:", {
+      hasModel: !!this.model,
+      modelType: typeof this.model,
+      hasCurrentWorkflow: !!this.currentWorkflow,
+      workflowName: this.currentWorkflow?.name || "none",
+      hasMessages: !!this.messages,
+      messagesType: typeof this.messages,
+      isMessagesArray: Array.isArray(this.messages),
+      messageCount: Array.isArray(this.messages) ? this.messages.length : "N/A",
+    });
+
+    console.assert(
+      this.model,
+      "❌ ASSERTION FAILED: Model must be initialized"
+    );
+
+    // ASSERTION 3: Verify messages property exists and is an array
+    console.assert(
+      Array.isArray(this.messages),
+      "❌ ASSERTION FAILED: this.messages must be an array"
+    );
+
+    // Log current messages
+    if (Array.isArray(this.messages)) {
+      console.log("📝 [Chat DO] Current message history:", {
+        count: this.messages.length,
+        messages: this.messages.map((msg, idx) => ({
+          index: idx,
+          role: msg.role,
+          contentPreview: `${msg.content?.substring(0, 50)}...`,
+        })),
+      });
+    }
+
+    console.log("🔄 [Chat DO] Ensuring workflow is initialized...");
+    // Ensure the workflow state is loaded before proceeding
+    await this.ensureInitialized();
+    console.log("✅ [Chat DO] Workflow initialization complete");
+
+    // Create a streaming response that handles both text and tool outputs
+    console.log("🌊 [Chat DO] Creating data stream response...");
+    const dataStreamResponse = createDataStreamResponse({
+      execute: async (dataStream) => {
+        console.log(
+          "🚀 [Chat DO] ========== EXECUTE FUNCTION START =========="
+        );
+        console.log("🚀 [Chat DO] DataStream execute function called", {
+          hasDataStream: !!dataStream,
+          dataStreamType: typeof dataStream,
+        });
+
+        try {
+          // Get all tools
+          console.log("🛠️ [Chat DO] Getting tools...");
+          const allTools = this.getTools();
+          console.log("🛠️ [Chat DO] Tools retrieved:", {
+            toolCount: Object.keys(allTools).length,
+            toolNames: Object.keys(allTools),
+          });
+
+          // ASSERTION 4: Verify tools are available
+          console.assert(
+            allTools && Object.keys(allTools).length > 0,
+            "❌ ASSERTION FAILED: Tools must be available"
+          );
+
+          // Process any pending tool calls from previous messages
+          console.log("🔧 [Chat DO] Processing tool calls...");
+          console.log("🔧 [Chat DO] Using this.messages directly:", {
+            messagesLength: this.messages?.length || 0,
+            hasMessages: !!this.messages,
+            firstMessage: this.messages?.[0],
+          });
+
+          // FIX: Use this.messages directly instead of calling getMessages()
+          const processedMessages = await processToolCalls({
+            messages: this.messages, // Direct property access
+            dataStream,
+            tools: allTools,
+            executions,
+          });
+
+          console.log("✅ [Chat DO] Tool calls processed:", {
+            processedMessageCount: processedMessages.length,
+            originalMessageCount: this.messages.length,
+          });
+
+          // Get system prompt
+          console.log("📋 [Chat DO] Getting system prompt...");
+          const systemPrompt = await this.getSystemPrompt();
+          console.log("📋 [Chat DO] System prompt retrieved:", {
+            promptLength: systemPrompt.length,
+            promptPreview: `${systemPrompt.substring(0, 100)}...`,
+          });
+
+          // Stream the AI response using the model
+          console.log("🤖 [Chat DO] Starting streamText with parameters:", {
+            hasModel: !!this.getModel(),
+            messageCount: processedMessages.length,
+            systemPromptLength: systemPrompt.length,
+            toolCount: Object.keys(allTools).length,
+          });
+
+          const result = streamText({
+            model: this.getModel(),
+            system: systemPrompt,
+            messages: processedMessages,
+            tools: allTools,
+            onFinish: async (args) => {
+              console.log("🏁 [Chat DO] ========== STREAM ONFINISH ==========");
+              console.log("✅ [Chat DO] streamText onFinish called:", {
+                finishReason: args.finishReason,
+                usage: args.usage,
+                hasToolCalls: !!args.toolCalls && args.toolCalls.length > 0,
+                toolCallCount: args.toolCalls?.length || 0,
+                responseLength: args.text?.length || 0,
+              });
+
+              // Call the provided onFinish callback
+              console.log(
+                "📞 [Chat DO] Calling framework onFinish callback..."
+              );
+              onFinish(
+                args as Parameters<StreamTextOnFinishCallback<ToolSet>>[0]
+              );
+              console.log("✅ [Chat DO] Framework onFinish callback completed");
+
+              // Also call our class-level onFinish to handle tool calls and updates
+              if (this.onFinish) {
+                console.log("📞 [Chat DO] Calling class-level onFinish...");
+                await this.onFinish({
+                  text: args.text,
+                  finishReason: args.finishReason,
+                  toolCalls: args.toolCalls,
+                  toolResults: args.toolResults,
+                  usage: args.usage,
+                  warnings: args.warnings,
+                });
+                console.log("✅ [Chat DO] Class-level onFinish completed");
+              }
+            },
+            onError: (error) => {
+              console.error("❌ [Chat DO] ========== STREAM ERROR ==========");
+              console.error("❌ [Chat DO] Error while streaming:", {
+                errorType:
+                  error instanceof Error
+                    ? error.constructor.name
+                    : typeof error,
+                errorMessage:
+                  error instanceof Error ? error.message : String(error),
+                errorStack: error instanceof Error ? error.stack : undefined,
+              });
+            },
+            maxSteps: 10,
+            abortSignal: options?.abortSignal,
+          });
+
+          console.log("🔀 [Chat DO] Merging AI response into data stream...");
+          // Merge the AI response stream with tool execution outputs
+          result.mergeIntoDataStream(dataStream);
+          console.log("✅ [Chat DO] AI response merged successfully");
+        } catch (error) {
+          console.error("❌ [Chat DO] ========== EXECUTE ERROR ==========");
+          console.error("❌ [Chat DO] Critical error in execute function:", {
+            errorType:
+              error instanceof Error ? error.constructor.name : typeof error,
+            errorMessage:
+              error instanceof Error ? error.message : String(error),
+            errorStack: error instanceof Error ? error.stack : undefined,
+            errorDetails: error,
+          });
+          // Log the state at time of error
+          console.error("❌ [Chat DO] State at error:", {
+            hasModel: !!this.model,
+            hasMessages: !!this.messages,
+            messageCount: this.messages?.length || "error",
+            hasCurrentWorkflow: !!this.currentWorkflow,
+          });
+          throw error;
+        }
+
+        console.log("🎉 [Chat DO] ========== EXECUTE FUNCTION END ==========");
+      },
+    });
+
+    console.log("🔄 [Chat DO] Returning data stream response");
+    console.log("💬 [Chat DO] ========== ONCHATMESSAGE EXIT ==========");
+    return dataStreamResponse;
+  }
+}
+
+interface Env extends WorkflowEditingEnv {
+  ENVIRONMENT: string;
+  OPENAI_API_KEY: string;
+  // Updated to match wrangler.jsonc binding name
+  Chat: DurableObjectNamespace;
+  WORKFLOW_VERSIONS: R2Bucket;
+}
+
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    const url = new URL(request.url);
+
+    // Enable verbose logging in development
+    const isDev = env.ENVIRONMENT === "development";
+    if (isDev) {
+      console.log("🌐 [Server] Incoming request", {
+        method: request.method,
+        url: request.url,
+        pathname: url.pathname,
+        // biome-ignore lint/suspicious/noExplicitAny: Headers.entries() exists but TypeScript types are incomplete
+        headers: Object.fromEntries((request.headers as any).entries()),
+        hasOpenAIKey: !!env.OPENAI_API_KEY,
+        keyLength: env.OPENAI_API_KEY?.length,
+      });
+    }
+
+    // Handle check-open-ai-key endpoint
+    if (url.pathname === "/check-open-ai-key") {
+      // Add CORS headers
+      if (request.method === "OPTIONS") {
+        return new Response(null, {
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+          },
+        });
+      }
+
+      const hasKey = !!env.OPENAI_API_KEY && env.OPENAI_API_KEY.length > 0;
+
+      return Response.json(
+        { success: hasKey },
         {
-          customMetadata: {
-            version: workflow.version,
-            goals: workflow.goals.length.toString(),
-            updated: new Date().toISOString(),
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
           },
         }
       );
     }
 
-    // Broadcast workflow update to all connected WebSocket clients
-    this.ctx.getWebSockets().forEach(ws => {
-      try { 
-        ws.send(JSON.stringify({ type: "workflow_updated" })); 
-      } catch {}
-    });
-
-    console.log(
-      `Saved workflow: ${workflow.name} (${workflow.goals.length} goals)`
-    );
-  }
-
-  /**
-   * Handles incoming chat messages and manages the response stream
-   * @param onFinish - Callback function executed when streaming completes
-   */
-
-  async onChatMessage(
-    onFinish: StreamTextOnFinishCallback<ToolSet>,
-    options?: { abortSignal?: AbortSignal }
-  ) {
-    console.log("📨 [Chat DO] onChatMessage called", {
-      messagesCount: this.messages.length,
-      workflowLoaded: this.workflowLoaded,
-      currentTemplateId: this.currentTemplateId,
-      hasModel: !!this.model,
-      hasCurrentWorkflow: !!this.currentWorkflow,
-      workflowGoalsCount: this.currentWorkflow?.goals?.length || 0,
-      instanceId: this.state?.id?.toString() || 'unknown',
-      timestamp: new Date().toISOString()
-    });
-
-    // Assert critical conditions
-    console.assert(this.model, '❌ AI model should be available in onChatMessage');
-    console.assert(typeof onFinish === 'function', '❌ onFinish should be a function');
-
-    // Wait for workflow state to be loaded
-    if (!this.workflowLoaded) {
-      console.log("⏳ [Chat DO] Workflow not loaded, initializing state");
-      await this.initializeWorkflowState();
-    }
-
-    // Enhanced system prompt with workflow awareness
-    const workflowContext = this.currentWorkflow
-      ? `Currently editing workflow: "${this.currentWorkflow.name}" with ${this.currentWorkflow.goals.length} goals.`
-      : "No workflow currently loaded. Use 'createWorkflow' to start a new workflow.";
-
-    console.log("📝 [Chat DO] System prompt context", {
-      hasCurrentWorkflow: !!this.currentWorkflow,
-      workflowName: this.currentWorkflow?.name,
-      goalsCount: this.currentWorkflow?.goals?.length || 0,
-      workflowContext: workflowContext.substring(0, 100) + '...'
-    });
-
-    const systemPrompt = `You are a helpful AI assistant with advanced workflow editing capabilities.
-
-**Current Context:**
-${workflowContext}
-
-**Workflow Tool Guidelines:**
-- Always use 'viewCurrentWorkflow' to understand the current state before making changes
-- When adding goals, use descriptive names that clearly indicate the goal's purpose
-- For tasks, choose appropriate assignee types (ai_agent for automated tasks, human for tasks requiring judgment)
-- Add constraints to enforce important business rules and quality standards
-- Use specific, actionable descriptions for all workflow elements
-
-**Tool Usage Patterns:**
-1. **Starting a workflow**: Use 'createWorkflow' with a clear name and description
-2. **Understanding current state**: Use 'viewCurrentWorkflow' to see all goals and tasks
-3. **Adding structure**: Use 'addGoal' to create major workflow phases
-4. **Adding work items**: Use 'addTask' to define specific work within goals
-5. **Adding rules**: Use 'addConstraint' to enforce quality and compliance
-
-**Safety**: Destructive operations (delete actions) require user confirmation. Present the confirmation requirements clearly.
-
-When users ask about workflows, follow this pattern:
-1. Check current workflow state with 'viewCurrentWorkflow'
-2. Make requested changes using appropriate tools
-3. Confirm changes were applied successfully
-
-${unstable_getSchedulePrompt({ date: new Date() })}
-
-If the user asks to schedule a task, use the schedule tool to schedule the task.
-`;
-
-    // const mcpConnection = await this.mcp.connect(
-    //   "https://path-to-mcp-server/sse"
-    // );
-
-    // Collect all tools, including MCP tools
-    const allTools = {
-      ...tools,
-      ...this.mcp.unstable_getAITools(),
-    };
-
-    console.log("🔧 [Chat DO] Tools collected", {
-      baseToolsCount: Object.keys(tools).length,
-      mcpToolsCount: Object.keys(this.mcp.unstable_getAITools()).length,
-      allToolsCount: Object.keys(allTools).length,
-      toolNames: Object.keys(allTools).slice(0, 5) // Just first 5 for brevity
-    });
-
-    // Create a streaming response that handles both text and tool outputs
-    const dataStreamResponse = createDataStreamResponse({
-      execute: async (dataStream) => {
-        console.log("🎯 [Chat DO] Starting dataStream execution");
-        
-        // Process any pending tool calls from previous messages
-        // This handles human-in-the-loop confirmations for tools
-        const processedMessages = await processToolCalls({
-          messages: this.messages,
-          dataStream,
-          tools: allTools,
-          executions,
-        });
-
-        console.log("✅ [Chat DO] Tool calls processed", {
-          originalMessagesCount: this.messages.length,
-          processedMessagesCount: processedMessages.length
-        });
-
-        console.log("🚀 [Chat DO] Calling streamText", {
-          hasModel: !!this.model,
-          systemPromptLength: systemPrompt.length,
-          messagesCount: processedMessages.length,
-          toolsCount: Object.keys(allTools).length,
-          maxSteps: 10
-        });
-
-        // Assert critical conditions before streaming
-        console.assert(this.model, '❌ Model should exist before streamText call');
-        console.assert(systemPrompt, '❌ System prompt should exist');
-        console.assert(processedMessages.length > 0, '❌ Should have messages to process');
-
-        try {
-          // Stream the AI response using GPT-4
-          const result = streamText({
-            model: this.model,
-            system: systemPrompt,
-            messages: processedMessages,
-            tools: allTools,
-            onFinish: async (args) => {
-              console.log("🏁 [Chat DO] streamText finished", {
-                hasResult: !!args,
-                finishReason: args?.finishReason,
-                usage: args?.usage
-              });
-              onFinish(
-                args as Parameters<StreamTextOnFinishCallback<ToolSet>>[0]
-              );
-              // await this.mcp.closeConnection(mcpConnection.id);
-            },
-            onError: (error) => {
-              console.error("❌ [Chat DO] Error while streaming:", error);
-            },
-            maxSteps: 10,
-          });
-          
-          console.log("✅ [Chat DO] streamText created successfully, merging into dataStream");
-          
-          // Merge the AI response stream with tool execution outputs
-          result.mergeIntoDataStream(dataStream);
-          
-          console.log("✅ [Chat DO] Stream merged into dataStream successfully");
-          
-        } catch (error) {
-          console.error("❌ [Chat DO] Failed to create streamText:", error);
-          throw error;
-        }
-      },
-    });
-
-    return dataStreamResponse;
-  }
-
-  async executeTask(description: string, task: Schedule<string>) {
-    await this.saveMessages([
-      ...this.messages,
-      {
-        id: generateId(),
-        role: "user",
-        content: `Running scheduled task: ${description}`,
-        createdAt: new Date(),
-      },
-    ]);
-  }
-}
-
-/**
- * Worker entry point that routes incoming requests to the appropriate handler
- */
-export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
-    const url = new URL(request.url);
-
-    if (url.pathname === "/check-open-ai-key") {
-      const hasOpenAIKey = !!env.OPENAI_API_KEY;
-      return Response.json({
-        success: hasOpenAIKey,
-      });
-    }
-
-    // Debug endpoint to check Chat DO state
+    // Handle debug endpoint to check Chat DO state
     if (url.pathname === "/debug/chat-state") {
+      // Add CORS headers for debug endpoint
+      if (request.method === "OPTIONS") {
+        return new Response(null, {
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+          },
+        });
+      }
+
       try {
+        // Get the default Chat DO instance
         const doId = env.Chat.idFromName("default");
         const chatDO = env.Chat.get(doId);
-        
-        const debugResponse = await chatDO.fetch(new Request(new URL(request.url).origin + "/_internal/debug-state", {
-          method: "GET",
-        }));
-        
-        const debugData = await debugResponse.json();
-        
+
+        const debugResponse = await chatDO.fetch(
+          new Request(`${new URL(request.url).origin}/_internal/debug-state`, {
+            method: "GET",
+          })
+        );
+
+        const debugData = (await debugResponse.json()) as Record<
+          string,
+          unknown
+        >;
+
         // Add DO instance ID debugging
         debugData.doInstanceId = doId.toString();
         debugData.debugEndpointUsed = "/debug/chat-state";
-        
+
         return Response.json(debugData);
       } catch (error) {
-        return Response.json({ 
-          error: "Debug failed", 
-          message: error.message,
-          timestamp: new Date().toISOString()
-        }, { status: 500 });
+        return Response.json(
+          {
+            error: "Debug failed",
+            message: error instanceof Error ? error.message : String(error),
+            timestamp: new Date().toISOString(),
+          },
+          { status: 500 }
+        );
       }
     }
 
-    // Dedicated endpoint for setting chat context with template ID
-    if (url.pathname === "/api/chat/set-context") {
+    // Handle clear chat history endpoint
+    if (url.pathname === "/clear-chat-history") {
+      // Add CORS headers
       if (request.method === "OPTIONS") {
-        return new Response(null, { 
-          status: 200,
+        return new Response(null, {
           headers: {
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "POST, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type",
+          },
+        });
+      }
+
+      if (request.method !== "POST") {
+        return new Response("Method Not Allowed", { status: 405 });
+      }
+
+      try {
+        // Get the default Chat DO instance
+        const doId = env.Chat.idFromName("default");
+        const chatDO = env.Chat.get(doId);
+
+        // Clear the chat history in the DO
+        const clearResponse = await chatDO.fetch(
+          new Request(
+            `${new URL(request.url).origin}/_internal/clear-history`,
+            {
+              method: "POST",
+              headers: {
+                // Add required PartyKit headers
+                "x-partykit-namespace": "chat",
+                "x-partykit-room": "default",
+              },
+            }
+          )
+        );
+
+        if (clearResponse.ok) {
+          return Response.json(
+            { success: true, message: "Chat history cleared" },
+            {
+              headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
+              },
+            }
+          );
+        }
+        return Response.json(
+          { success: false, message: "Failed to clear history" },
+          {
+            status: 500,
+            headers: {
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "POST, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type",
+            },
           }
+        );
+      } catch (error) {
+        console.error("Failed to clear chat history:", error);
+        return Response.json(
+          { success: false, message: "Internal Server Error" },
+          {
+            status: 500,
+            headers: {
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "POST, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type",
+            },
+          }
+        );
+      }
+    }
+
+    // Handle chat context setting endpoint
+    if (url.pathname === "/api/chat/set-context") {
+      // Add CORS headers
+      if (request.method === "OPTIONS") {
+        return new Response(null, {
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+          },
         });
       }
       if (request.method !== "POST") {
         return new Response("Method Not Allowed", { status: 405 });
       }
-      
+
       try {
-        const { agent, templateId } = await request.json();
-        
-        console.log("🔧 [Server] Setting chat context", { 
-          agent, 
+        const { agent, templateId } = (await request.json()) as {
+          agent: string;
+          templateId: string;
+        };
+
+        console.log("🔧 [Server] Setting chat context", {
+          agent,
           templateId,
           hasBinding: !!env.Chat,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
-        
+
         // Basic validation
         if (agent !== "chat" || !templateId) {
           return Response.json(
-            { success: false, message: "Invalid request body - agent must be 'chat' and templateId is required" },
+            {
+              success: false,
+              message:
+                "Invalid request body - agent must be 'chat' and templateId is required",
+            },
             { status: 400 }
           );
         }
-        
+
         // Sanitize templateId to prevent path traversal
         if (!/^[\w-]+$/.test(templateId)) {
           return Response.json(
@@ -637,64 +1181,72 @@ export default {
             { status: 400 }
           );
         }
-        
+
         // TODO: Add authorization logic here to ensure user can access this templateId
-        
+
         // Get the default Chat DO instance (using room name only to match agents routing)
         const doId = env.Chat.idFromName("default");
         const chatDO = env.Chat.get(doId);
-        
+
         // Send internal request to Chat DO to set context
         console.log("🔗 [Server] Calling Chat DO with context", { templateId });
-        const contextResponse = await chatDO.fetch(new Request(new URL(request.url).origin + "/_internal/set-context", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ templateId }),
-        }));
-        
-        console.log("📡 [Server] Chat DO response", { 
-          status: contextResponse.status, 
-          ok: contextResponse.ok 
+        const contextResponse = await chatDO.fetch(
+          new Request(`${new URL(request.url).origin}/_internal/set-context`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ templateId }),
+          })
+        );
+
+        console.log("📡 [Server] Chat DO response", {
+          status: contextResponse.status,
+          ok: contextResponse.ok,
         });
-        
+
         if (contextResponse.ok) {
-          console.log("✅ [Server] Chat context set successfully", { templateId });
-          return Response.json({ 
-            success: true, 
-            message: `Context set to template: ${templateId}` 
-          }, {
-            headers: {
-              "Access-Control-Allow-Origin": "*",
-              "Access-Control-Allow-Methods": "POST, OPTIONS",
-              "Access-Control-Allow-Headers": "Content-Type",
-            }
+          console.log("✅ [Server] Chat context set successfully", {
+            templateId,
           });
-        } else {
-          console.error("❌ [Server] Failed to set chat context", await contextResponse.text());
           return Response.json(
-            { success: false, message: "Failed to set context" },
-            { 
-              status: 500,
+            {
+              success: true,
+              message: `Context set to template: ${templateId}`,
+            },
+            {
               headers: {
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "POST, OPTIONS",
                 "Access-Control-Allow-Headers": "Content-Type",
-              }
+              },
             }
           );
         }
-        
-      } catch (error) {
-        console.error("❌ [Server] Error setting chat context:", error);
+        console.error(
+          "❌ [Server] Failed to set chat context",
+          await contextResponse.text()
+        );
         return Response.json(
-          { success: false, message: "Internal Server Error" },
-          { 
+          { success: false, message: "Failed to set context" },
+          {
             status: 500,
             headers: {
               "Access-Control-Allow-Origin": "*",
               "Access-Control-Allow-Methods": "POST, OPTIONS",
               "Access-Control-Allow-Headers": "Content-Type",
-            }
+            },
+          }
+        );
+      } catch (error) {
+        console.error("❌ [Server] Error setting chat context:", error);
+        return Response.json(
+          { success: false, message: "Internal Server Error" },
+          {
+            status: 500,
+            headers: {
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "POST, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type",
+            },
           }
         );
       }
@@ -708,21 +1260,270 @@ export default {
     // Route workflow editing API requests
     if (url.pathname.startsWith("/api/workflow/")) {
       if (validateWorkflowEditingEnv(env)) {
-        const workflowResponse = await routeWorkflowEditingAPI(
-          request,
-          env as WorkflowEditingEnv
-        );
-        if (workflowResponse) {
-          return workflowResponse;
-        }
+        const workflowResponse = await routeWorkflowEditingAPI(request, env);
+        if (workflowResponse) return workflowResponse;
       } else {
+        console.error("Workflow editing environment validation failed");
+        return Response.json(
+          {
+            error: "Service unavailable",
+            message: "Workflow editing is not properly configured",
+          },
+          { status: 503 }
+        );
+      }
+    }
+
+    // Handle API endpoint to list all available templates
+    if (url.pathname === "/api/templates") {
+      // Add CORS headers
+      if (request.method === "OPTIONS") {
+        return new Response(null, {
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+          },
+        });
+      }
+
+      if (request.method !== "GET") {
+        return new Response("Method Not Allowed", { status: 405 });
+      }
+
+      try {
+        const templates = [];
+
+        // Try to get templates from R2 first
+        if (env.WORKFLOW_VERSIONS) {
+          console.log("📚 [Server] Listing templates from R2");
+          const list = await env.WORKFLOW_VERSIONS.list({
+            prefix: "workflows/",
+            limit: 100,
+          });
+
+          for (const object of list.objects) {
+            // Extract template ID from key (workflows/template-id.json)
+            const templateId = object.key
+              .replace("workflows/", "")
+              .replace(".json", "");
+
+            // Get template metadata
+            const r2Object = await env.WORKFLOW_VERSIONS.get(object.key);
+            if (r2Object) {
+              try {
+                const workflow = await r2Object.json<WorkflowTemplateV2>();
+                if (validateWorkflowV2(workflow)) {
+                  templates.push({
+                    id: templateId,
+                    name: workflow.name,
+                    version: workflow.version || "1.0",
+                    last_modified: object.uploaded.toISOString(),
+                    author: workflow.metadata?.author || "Unknown",
+                    tags: workflow.metadata?.tags || [],
+                    source: "r2" as const,
+                  });
+                }
+              } catch (error) {
+                console.error(`Failed to parse template ${templateId}:`, error);
+              }
+            }
+          }
+        }
+
+        // Add local templates as fallback
+        for (const [id, workflow] of Object.entries(LOCAL_TEMPLATES)) {
+          // Check if this template is already in the list from R2
+          if (!templates.find((t) => t.id === id)) {
+            templates.push({
+              id,
+              name: workflow.name,
+              version: workflow.version || "1.0",
+              last_modified:
+                workflow.metadata?.last_modified || new Date().toISOString(),
+              author: workflow.metadata?.author || "Unknown",
+              tags: workflow.metadata?.tags || [],
+              source: "local" as const,
+            });
+          }
+        }
+
+        console.log(`✅ [Server] Found ${templates.length} templates`);
+
+        return Response.json(
+          {
+            success: true,
+            templates,
+            count: templates.length,
+          },
+          {
+            headers: {
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "GET, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type",
+            },
+          }
+        );
+      } catch (error) {
+        console.error("❌ [Server] Failed to list templates:", error);
         return Response.json(
           {
             success: false,
-            message: "Workflow editing service not properly configured",
-            errorDetails: "Missing AI or WORKFLOW_VERSIONS bindings",
+            message: "Failed to list templates",
+            templates: [],
           },
-          { status: 503 }
+          {
+            status: 500,
+            headers: {
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "GET, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type",
+            },
+          }
+        );
+      }
+    }
+
+    // Handle API endpoint to save workflow template
+    if (url.pathname === "/api/workflow/save") {
+      // Add CORS headers
+      if (request.method === "OPTIONS") {
+        return new Response(null, {
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+          },
+        });
+      }
+
+      if (request.method !== "POST") {
+        return new Response("Method Not Allowed", { status: 405 });
+      }
+
+      try {
+        const { workflow, sessionId } = (await request.json()) as {
+          workflow: WorkflowTemplateV2;
+          sessionId?: string;
+        };
+
+        if (!workflow || !workflow.id) {
+          return Response.json(
+            {
+              success: false,
+              message: "Invalid workflow data",
+            },
+            {
+              status: 400,
+              headers: {
+                "Access-Control-Allow-Origin": "*",
+              },
+            }
+          );
+        }
+
+        // Validate workflow structure
+        if (!validateWorkflowV2(workflow)) {
+          return Response.json(
+            {
+              success: false,
+              message: "Invalid workflow structure",
+            },
+            {
+              status: 400,
+              headers: {
+                "Access-Control-Allow-Origin": "*",
+              },
+            }
+          );
+        }
+
+        // Save to R2 if available
+        if (env.WORKFLOW_VERSIONS) {
+          const r2Key = `workflows/${workflow.id}.json`;
+
+          // Update metadata
+          workflow.metadata = {
+            ...workflow.metadata,
+            last_modified: new Date().toISOString(),
+          };
+
+          await env.WORKFLOW_VERSIONS.put(
+            r2Key,
+            JSON.stringify(workflow, null, 2),
+            {
+              httpMetadata: {
+                contentType: "application/json",
+              },
+              customMetadata: {
+                workflowId: workflow.id,
+                workflowName: workflow.name,
+                version: workflow.version || "1.0",
+                sessionId: sessionId || "unknown",
+              },
+            }
+          );
+
+          console.log(`✅ [Server] Saved workflow to R2: ${r2Key}`);
+
+          // Also update the Chat DO if this is the current template
+          if (sessionId) {
+            const doId = env.Chat.idFromName("default");
+            const chatDO = env.Chat.get(doId);
+
+            // Notify the DO to reload the template
+            await chatDO.fetch(
+              new Request(
+                `${new URL(request.url).origin}/_internal/set-context`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ templateId: workflow.id }),
+                }
+              )
+            );
+          }
+
+          return Response.json(
+            {
+              success: true,
+              message: "Workflow saved successfully",
+              workflowId: workflow.id,
+            },
+            {
+              headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
+              },
+            }
+          );
+        }
+        return Response.json(
+          {
+            success: false,
+            message: "Storage not configured",
+          },
+          {
+            status: 503,
+            headers: {
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      } catch (error) {
+        console.error("❌ [Server] Failed to save workflow:", error);
+        return Response.json(
+          {
+            success: false,
+            message: "Failed to save workflow",
+          },
+          {
+            status: 500,
+            headers: {
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
         );
       }
     }
@@ -734,3 +1535,8 @@ export default {
     );
   },
 } satisfies ExportedHandler<Env>;
+
+// Export agents configuration for the agents package
+export const agents = {
+  chat: Chat,
+};

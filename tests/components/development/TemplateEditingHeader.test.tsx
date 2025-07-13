@@ -15,7 +15,11 @@ vi.mock("@/state/workflowStore");
 
 // Mock child components to focus on the header logic
 vi.mock("@/components/development/TemplateSelector", () => ({
-  TemplateSelector: ({ onTemplateChange }: any) => (
+  TemplateSelector: ({
+    onTemplateChange,
+  }: {
+    onTemplateChange?: (templateId: string, templateName: string) => void;
+  }) => (
     <div data-testid="template-selector">
       Template Selector Mock
       <button onClick={() => onTemplateChange?.("test-id", "Test Template")}>
@@ -26,7 +30,11 @@ vi.mock("@/components/development/TemplateSelector", () => ({
 }));
 
 vi.mock("@/components/development/Breadcrumb", () => ({
-  Breadcrumb: ({ onViewModeChange }: any) => (
+  Breadcrumb: ({
+    onViewModeChange,
+  }: {
+    onViewModeChange?: (mode: "edit" | "instance") => void;
+  }) => (
     <div data-testid="breadcrumb">
       Breadcrumb Mock
       <button onClick={() => onViewModeChange?.("instance")}>
@@ -37,7 +45,7 @@ vi.mock("@/components/development/Breadcrumb", () => ({
 }));
 
 vi.mock("@/components/development/SaveTemplateButton", () => ({
-  SaveTemplateButton: ({ onSave }: any) => (
+  SaveTemplateButton: ({ onSave }: { onSave?: () => void | Promise<void> }) => (
     <div data-testid="save-button">
       Save Button Mock
       <button onClick={onSave}>Mock Save</button>
@@ -89,7 +97,7 @@ describe("TemplateEditingHeader", () => {
 
     it("should not render when viewMode is undefined", () => {
       mockUseWorkflowStore.mockReturnValue({
-        viewMode: undefined as any,
+        viewMode: undefined as unknown as "edit" | "instance",
         // Add other required store properties
         availableTemplates: [],
         selectedTemplateId: "instawork-shift-filling",

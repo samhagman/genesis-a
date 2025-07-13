@@ -237,11 +237,11 @@ describe("Chat DO Template Enhancement", () => {
         );
 
         // Simulate WebSocket broadcast (the code we just added)
-        mockChatDO.ctx.getWebSockets().forEach(ws => {
-          try { 
-            ws.send(JSON.stringify({ type: "workflow_updated" })); 
+        for (const ws of mockChatDO.ctx.getWebSockets()) {
+          try {
+            ws.send(JSON.stringify({ type: "workflow_updated" }));
           } catch {}
-        });
+        }
       };
 
       // Execute: Save the workflow
@@ -261,10 +261,10 @@ describe("Chat DO Template Enhancement", () => {
     it("should handle WebSocket send failures gracefully", async () => {
       // Setup: Create mock WebSockets where one fails
       const mockWebSocket1 = { send: vi.fn() };
-      const mockWebSocket2 = { 
+      const mockWebSocket2 = {
         send: vi.fn().mockImplementation(() => {
           throw new Error("WebSocket connection closed");
-        })
+        }),
       };
       const mockWebSocket3 = { send: vi.fn() };
       const mockWebSockets = [mockWebSocket1, mockWebSocket2, mockWebSocket3];
@@ -278,11 +278,11 @@ describe("Chat DO Template Enhancement", () => {
 
       // Execute: Simulate WebSocket broadcast with error handling
       const broadcastLogic = () => {
-        mockChatDO.ctx.getWebSockets().forEach(ws => {
-          try { 
-            ws.send(JSON.stringify({ type: "workflow_updated" })); 
+        for (const ws of mockChatDO.ctx.getWebSockets()) {
+          try {
+            ws.send(JSON.stringify({ type: "workflow_updated" }));
           } catch {}
-        });
+        }
       };
 
       // This should not throw despite mockWebSocket2 failing
@@ -295,7 +295,7 @@ describe("Chat DO Template Enhancement", () => {
       expect(mockWebSocket3.send).toHaveBeenCalledWith(
         JSON.stringify({ type: "workflow_updated" })
       );
-      
+
       // Verify: Failed WebSocket was attempted but didn't break the flow
       expect(mockWebSocket2.send).toHaveBeenCalledTimes(1);
     });

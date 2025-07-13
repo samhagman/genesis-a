@@ -7,14 +7,20 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import type { WorkflowTemplateV2 } from "../src/types/workflow-v2";
 
+type LoadWorkflowSafeFunc = (
+  templateId: string
+) => Promise<{ workflow: WorkflowTemplateV2; source: string }>;
+type OnWorkflowUpdateFunc = (workflow: WorkflowTemplateV2) => void;
+type WebSocketMessage = { type: string; [key: string]: unknown };
+
 describe("Frontend WebSocket Integration", () => {
-  let mockLoadWorkflowSafe: any;
-  let mockOnWorkflowUpdate: any;
+  let mockLoadWorkflowSafe: LoadWorkflowSafeFunc;
+  let mockOnWorkflowUpdate: OnWorkflowUpdateFunc;
   let mockTemplate: WorkflowTemplateV2;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     mockLoadWorkflowSafe = vi.fn();
     mockOnWorkflowUpdate = vi.fn();
 
@@ -48,14 +54,18 @@ describe("Frontend WebSocket Integration", () => {
     // Mock successful workflow loading
     mockLoadWorkflowSafe.mockResolvedValue({
       workflow: mockTemplate,
-      source: "r2"
+      source: "r2",
     });
 
     // Simulate the message handling logic from ChatPanel
-    const handleWorkflowUpdateMessage = async (message: any, selectedTemplateId: string) => {
+    const handleWorkflowUpdateMessage = async (
+      message: WebSocketMessage,
+      selectedTemplateId: string
+    ) => {
       if (message.type === "workflow_updated") {
         console.log("📨 Received workflow_updated notification");
-        const { workflow: updatedWorkflow } = await mockLoadWorkflowSafe(selectedTemplateId);
+        const { workflow: updatedWorkflow } =
+          await mockLoadWorkflowSafe(selectedTemplateId);
         mockOnWorkflowUpdate(updatedWorkflow);
       }
     };
@@ -73,9 +83,13 @@ describe("Frontend WebSocket Integration", () => {
 
   it("should ignore non-workflow_updated messages", async () => {
     // Simulate the message handling logic
-    const handleWorkflowUpdateMessage = async (message: any, selectedTemplateId: string) => {
+    const handleWorkflowUpdateMessage = async (
+      message: WebSocketMessage,
+      selectedTemplateId: string
+    ) => {
       if (message.type === "workflow_updated") {
-        const { workflow: updatedWorkflow } = await mockLoadWorkflowSafe(selectedTemplateId);
+        const { workflow: updatedWorkflow } =
+          await mockLoadWorkflowSafe(selectedTemplateId);
         mockOnWorkflowUpdate(updatedWorkflow);
       }
     };
@@ -98,13 +112,19 @@ describe("Frontend WebSocket Integration", () => {
 
   it("should handle loadWorkflowSafe failures gracefully", async () => {
     // Mock failed workflow loading
-    mockLoadWorkflowSafe.mockRejectedValue(new Error("Failed to load workflow"));
+    mockLoadWorkflowSafe.mockRejectedValue(
+      new Error("Failed to load workflow")
+    );
 
     // Simulate the message handling logic with error handling
-    const handleWorkflowUpdateMessage = async (message: any, selectedTemplateId: string) => {
+    const handleWorkflowUpdateMessage = async (
+      message: WebSocketMessage,
+      selectedTemplateId: string
+    ) => {
       if (message.type === "workflow_updated") {
         try {
-          const { workflow: updatedWorkflow } = await mockLoadWorkflowSafe(selectedTemplateId);
+          const { workflow: updatedWorkflow } =
+            await mockLoadWorkflowSafe(selectedTemplateId);
           mockOnWorkflowUpdate(updatedWorkflow);
         } catch (error) {
           console.error("Error handling WebSocket message:", error);
@@ -126,15 +146,22 @@ describe("Frontend WebSocket Integration", () => {
 
   it("should validate WebSocket connection prerequisites", () => {
     // Test the logic that determines whether WebSocket should be established
-    const shouldEstablishWebSocket = (selectedTemplateId?: string, onWorkflowUpdate?: any) => {
+    const shouldEstablishWebSocket = (
+      selectedTemplateId?: string,
+      onWorkflowUpdate?: OnWorkflowUpdateFunc
+    ) => {
       return !!(selectedTemplateId && onWorkflowUpdate);
     };
 
     // Test valid conditions
-    expect(shouldEstablishWebSocket("test-workflow", mockOnWorkflowUpdate)).toBe(true);
+    expect(
+      shouldEstablishWebSocket("test-workflow", mockOnWorkflowUpdate)
+    ).toBe(true);
 
     // Test invalid conditions
-    expect(shouldEstablishWebSocket(undefined, mockOnWorkflowUpdate)).toBe(false);
+    expect(shouldEstablishWebSocket(undefined, mockOnWorkflowUpdate)).toBe(
+      false
+    );
     expect(shouldEstablishWebSocket("test-workflow", undefined)).toBe(false);
     expect(shouldEstablishWebSocket(undefined, undefined)).toBe(false);
   });
