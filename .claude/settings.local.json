@@ -85,10 +85,14 @@
       "Bash(timeout 60 npm run test:e2e:*)",
       "Bash(timeout 30 npm run test:e2e:*)",
       "Bash(timeout:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "mcp__playwright__playwright_select",
+      "mcp__zen__analyze"
     ],
     "deny": []
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": ["zen"]
+  "enabledMcpjsonServers": [
+    "zen"
+  ]
 }

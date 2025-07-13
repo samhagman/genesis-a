@@ -249,7 +249,7 @@ export class WorkflowEditingAPI {
 
       // Try loading from R2 first (using same approach as Chat DO)
       if (this.env.WORKFLOW_VERSIONS) {
-        const key = `workflows/${workflowId}/current.json`;
+        const key = `workflows/${workflowId}.json`;
         console.log(
           `[Workflow API] Attempting direct R2 load for ${workflowId} at ${key}`
         );

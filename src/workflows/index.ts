@@ -17,7 +17,7 @@ const WORKFLOW_REGISTRY = {
     description:
       "Automated workflow for filling shift positions with qualified workers",
   },
-  "employee-onboarding": {
+  "employee-onboarding-v2": {
     data: employeeOnboardingV2Data,
     name: "Employee Onboarding Process V2",
     description:

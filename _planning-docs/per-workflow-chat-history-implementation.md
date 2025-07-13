@@ -150,47 +150,251 @@ const [connectionState, setConnectionState] = useState<'connecting' | 'connected
 - If issues arise: Add debouncing to template selector
 - Monitor for "too many connections" errors
 
-### Phase 3: Comprehensive Testing
+### Phase 3: Comprehensive Testing with Playwright MCP
 
-#### 3.1 Manual Testing Checklist
+#### 3.1 Visual UX Verification with Playwright
 
-**Basic Workflow Isolation**
+**Setup Playwright Session**
+```typescript
+// Start Playwright MCP session
+await mcp__playwright__start_codegen_session({
+  options: {
+    outputPath: "./tests/e2e/generated",
+    includeComments: true,
+    testNamePrefix: "WorkflowChatIsolation"
+  }
+});
 
-- [ ] Start with "instawork-shift-filling" workflow
-- [ ] Send messages: "Hello from InstaWork", "Testing workflow A"
-- [ ] Switch to "employee-onboarding-v2" workflow
-- [ ] Verify chat panel shows empty history
-- [ ] Send messages: "Hello from Onboarding", "Testing workflow B"
-- [ ] Switch back to "instawork-shift-filling"
-- [ ] Verify original messages are preserved
-- [ ] Check no message contamination
+// Navigate to application
+await mcp__playwright__playwright_navigate({
+  url: "http://localhost:3000",
+  browserType: "chromium",
+  headless: false,
+  width: 1280,
+  height: 720
+});
+```
 
-**Clear History Isolation**
+**Test 1: Basic Workflow Isolation - Visual Verification**
+```typescript
+// Step 1: Take initial screenshot
+await mcp__playwright__playwright_screenshot({
+  name: "initial-state",
+  fullPage: true,
+  savePng: true
+});
 
-- [ ] In InstaWork workflow, click clear history button
-- [ ] Verify all messages are cleared
-- [ ] Switch to Onboarding workflow
-- [ ] Verify Onboarding messages still exist
-- [ ] Switch back to InstaWork
-- [ ] Verify InstaWork remains empty
+// Step 2: Verify initial chat state
+const initialChatContent = await mcp__playwright__playwright_get_visible_text();
+expect(initialChatContent).toContain("Welcome to AI Chat");
 
-**WebSocket Connection Stability**
+// Step 3: Send message in workflow A
+await mcp__playwright__playwright_fill({
+  selector: '[data-testid="chat-input"]',
+  value: "Hello from InstaWork workflow"
+});
+await mcp__playwright__playwright_click({
+  selector: '[data-testid="send-button"]'
+});
 
-- [ ] Open DevTools > Network > WS tab
-- [ ] Switch workflows multiple times
-- [ ] Verify for each switch:
-  - [ ] Old WebSocket closes cleanly
-  - [ ] New WebSocket opens to different endpoint
-  - [ ] Connection establishes within 1 second
-  - [ ] No connection errors in console
+// Step 4: Wait for message to appear and screenshot
+await page.waitForTimeout(1000); // Allow message to render
+await mcp__playwright__playwright_screenshot({
+  name: "workflow-a-with-message",
+  selector: '[data-testid="chat-messages"]',
+  savePng: true
+});
 
-**Edge Case Testing**
+// Step 5: Check console for WebSocket connection
+const consoleLogs1 = await mcp__playwright__playwright_console_logs({
+  type: "log",
+  search: "WebSocket"
+});
+expect(consoleLogs1).toContain("WebSocket connected");
 
-- [ ] Rapid switching: Click between workflows 5 times quickly
-- [ ] Mid-message switch: Type message, switch before sending
-- [ ] During AI response: Send message, switch during streaming
-- [ ] Network issues: Enable DevTools throttling, test switching
-- [ ] Long messages: Send paragraph, switch, verify isolation
+// Step 6: Switch to workflow B
+await mcp__playwright__playwright_select({
+  selector: '[data-testid="template-selector"]',
+  value: "employee-onboarding-v2"
+});
+
+// Step 7: Verify chat is empty after switch
+await page.waitForTimeout(500); // Allow for switch animation
+const workflowBContent = await mcp__playwright__playwright_get_visible_text();
+expect(workflowBContent).not.toContain("Hello from InstaWork");
+await mcp__playwright__playwright_screenshot({
+  name: "workflow-b-empty-chat",
+  fullPage: true,
+  savePng: true
+});
+
+// Step 8: Verify new WebSocket connection
+const consoleLogs2 = await mcp__playwright__playwright_console_logs({
+  type: "log",
+  search: "Workflow switched to"
+});
+expect(consoleLogs2).toContain("employee-onboarding-v2");
+```
+
+**Test 2: Clear History Visual Verification**
+```typescript
+// Ensure we're in workflow A with messages
+await mcp__playwright__playwright_select({
+  selector: '[data-testid="template-selector"]',
+  value: "instawork-shift-filling"
+});
+
+// Take before screenshot
+await mcp__playwright__playwright_screenshot({
+  name: "before-clear-history",
+  selector: '[data-testid="chat-panel"]',
+  savePng: true
+});
+
+// Click clear history button
+await mcp__playwright__playwright_click({
+  selector: '[data-testid="clear-history-button"]' // Assuming this data-testid
+});
+
+// Wait and verify UI updates
+await page.waitForTimeout(500);
+await mcp__playwright__playwright_screenshot({
+  name: "after-clear-history",
+  selector: '[data-testid="chat-panel"]',
+  savePng: true
+});
+
+// Verify welcome message reappears
+const clearedContent = await mcp__playwright__playwright_get_visible_text();
+expect(clearedContent).toContain("Welcome to AI Chat");
+```
+
+**Test 3: WebSocket Connection Monitoring**
+```typescript
+// Enable network monitoring
+await mcp__playwright__playwright_evaluate({
+  script: `
+    window.wsConnections = [];
+    const originalWebSocket = window.WebSocket;
+    window.WebSocket = function(...args) {
+      const ws = new originalWebSocket(...args);
+      window.wsConnections.push({
+        url: args[0],
+        readyState: ws.readyState,
+        timestamp: Date.now()
+      });
+      return ws;
+    };
+  `
+});
+
+// Perform workflow switches
+for (const workflow of ["instawork-shift-filling", "employee-onboarding-v2"]) {
+  await mcp__playwright__playwright_select({
+    selector: '[data-testid="template-selector"]',
+    value: workflow
+  });
+  await page.waitForTimeout(1000);
+  
+  // Check WebSocket connections
+  const connections = await mcp__playwright__playwright_evaluate({
+    script: "window.wsConnections"
+  });
+  
+  console.log(`WebSocket connections for ${workflow}:`, connections);
+}
+```
+
+**Test 4: Loading States and Transitions**
+```typescript
+// Test rapid switching with loading state verification
+const workflows = ["instawork-shift-filling", "employee-onboarding-v2"];
+const screenshots = [];
+
+for (let i = 0; i < 5; i++) {
+  const workflow = workflows[i % 2];
+  
+  // Switch workflow
+  await mcp__playwright__playwright_select({
+    selector: '[data-testid="template-selector"]',
+    value: workflow
+  });
+  
+  // Immediate screenshot to catch loading state
+  screenshots.push(await mcp__playwright__playwright_screenshot({
+    name: `rapid-switch-${i}`,
+    selector: '[data-testid="chat-panel"]',
+    savePng: true
+  }));
+  
+  // Check for loading indicators
+  const visibleText = await mcp__playwright__playwright_get_visible_text();
+  if (visibleText.includes("Connecting to workflow chat")) {
+    console.log(`Loading state detected at switch ${i}`);
+  }
+  
+  await page.waitForTimeout(200);
+}
+```
+
+**Test 5: Error State Handling**
+```typescript
+// Simulate network issues
+await mcp__playwright__playwright_evaluate({
+  script: `
+    // Override fetch to simulate network errors
+    const originalFetch = window.fetch;
+    window.fetch = function(...args) {
+      if (args[0].includes('set-context')) {
+        return Promise.reject(new Error('Network error'));
+      }
+      return originalFetch(...args);
+    };
+  `
+});
+
+// Try to switch workflow
+await mcp__playwright__playwright_select({
+  selector: '[data-testid="template-selector"]',
+  value: "employee-onboarding-v2"
+});
+
+// Screenshot error state
+await page.waitForTimeout(1000);
+await mcp__playwright__playwright_screenshot({
+  name: "network-error-state",
+  fullPage: true,
+  savePng: true
+});
+
+// Check console for error handling
+const errorLogs = await mcp__playwright__playwright_console_logs({
+  type: "error",
+  search: "Failed to set chat context"
+});
+```
+
+#### 3.2 Manual Testing Checklist
+
+**Visual Verification Points**
+- [ ] Screenshot comparison: Empty chat vs populated chat
+- [ ] Loading indicator appears during workflow switch
+- [ ] No flash of wrong content during transitions
+- [ ] Clear button visual feedback (hover, click states)
+- [ ] Chat input disabled state during transitions
+- [ ] Message timestamps are preserved correctly
+
+**Console Verification**
+- [ ] Check for "[ChatPanel] Workflow switched to:" logs
+- [ ] Verify WebSocket connection logs
+- [ ] No error messages during normal operation
+- [ ] Proper cleanup logs when switching
+
+**Network Verification**
+- [ ] WebSocket URL changes with workflow ID
+- [ ] Old WebSocket closes before new one opens
+- [ ] set-context API calls succeed
+- [ ] No duplicate connections
 
 #### 3.2 Automated Test Updates
 

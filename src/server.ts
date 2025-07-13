@@ -120,10 +120,19 @@ export class Chat extends AIChatAgent<Env> {
         // This call will set workflowLoaded = true upon success
         await this.initializeWithTemplate(savedTemplateId);
       } else {
-        console.warn(
-          "📭 [Chat DO] No saved template ID. Agent may have limited context."
-        );
-        // Optional: Load a default template if none is set
+        // Use the DO instance name as the template ID if no saved state
+        const instanceName = this.doState.id.name;
+        if (instanceName && instanceName !== "default") {
+          console.log(
+            "🔧 [Chat DO] No saved template, using instance name as template ID:",
+            instanceName
+          );
+          await this.initializeWithTemplate(instanceName);
+        } else {
+          console.warn(
+            "📭 [Chat DO] No saved template ID and instance name is default. Agent may have limited context."
+          );
+        }
       }
     } catch (error) {
       console.error(
@@ -1150,14 +1159,16 @@ export default {
       }
 
       try {
-        const { agent, templateId } = (await request.json()) as {
+        const { agent, templateId, name } = (await request.json()) as {
           agent: string;
           templateId: string;
+          name?: string; // DO instance name
         };
 
         console.log("🔧 [Server] Setting chat context", {
           agent,
           templateId,
+          name,
           hasBinding: !!env.Chat,
           timestamp: new Date().toISOString(),
         });
@@ -1184,12 +1195,17 @@ export default {
 
         // TODO: Add authorization logic here to ensure user can access this templateId
 
-        // Get the default Chat DO instance (using room name only to match agents routing)
-        const doId = env.Chat.idFromName("default");
+        // Get the Chat DO instance for this workflow (or default)
+        const instanceName = name || templateId || "default";
+        const doId = env.Chat.idFromName(instanceName);
         const chatDO = env.Chat.get(doId);
 
         // Send internal request to Chat DO to set context
-        console.log("🔗 [Server] Calling Chat DO with context", { templateId });
+        console.log("🔗 [Server] Calling Chat DO with context", { 
+          templateId,
+          instanceName,
+          doId: doId.toString()
+        });
         const contextResponse = await chatDO.fetch(
           new Request(`${new URL(request.url).origin}/_internal/set-context`, {
             method: "POST",
@@ -1314,15 +1330,21 @@ export default {
               try {
                 const workflow = await r2Object.json<WorkflowTemplateV2>();
                 if (validateWorkflowV2(workflow)) {
-                  templates.push({
-                    id: templateId,
-                    name: workflow.name,
-                    version: workflow.version || "1.0",
-                    last_modified: object.uploaded.toISOString(),
-                    author: workflow.metadata?.author || "Unknown",
-                    tags: workflow.metadata?.tags || [],
-                    source: "r2" as const,
-                  });
+                  // Filter out AI-generated workflows from templates list
+                  const isAIGenerated = templateId.startsWith('wf-') || 
+                                      workflow.metadata?.author === 'AI Agent';
+                  
+                  if (!isAIGenerated) {
+                    templates.push({
+                      id: templateId,
+                      name: workflow.name,
+                      version: workflow.version || "1.0",
+                      last_modified: object.uploaded.toISOString(),
+                      author: workflow.metadata?.author || "Unknown",
+                      tags: workflow.metadata?.tags || [],
+                      source: "r2" as const,
+                    });
+                  }
                 }
               } catch (error) {
                 console.error(`Failed to parse template ${templateId}:`, error);
@@ -1468,7 +1490,7 @@ export default {
 
           // Also update the Chat DO if this is the current template
           if (sessionId) {
-            const doId = env.Chat.idFromName("default");
+            const doId = env.Chat.idFromName(sessionId || "default");
             const chatDO = env.Chat.get(doId);
 
             // Notify the DO to reload the template

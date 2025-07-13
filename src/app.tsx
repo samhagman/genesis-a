@@ -61,16 +61,29 @@ export default function App() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
+  // Coordinate initial workflow load with selectedTemplateId from store
   useEffect(() => {
-    // Load workflow data on mount
-    async function loadWorkflow() {
+    async function initializeApp() {
       try {
         setWorkflowLoading(true);
-        // Load InstaWork workflow (V2 schema) from API (R2) with local fallback
-        const { workflow: workflowData, source } = await loadWorkflowSafe(
-          "instawork-shift-filling"
-        );
+        
+        // 1. Load available templates first
+        await loadAvailableTemplates();
+        
+        // 2. Get the final selectedTemplateId after templates are loaded
+        const { selectedTemplateId: finalTemplateId, availableTemplates } = useWorkflowStore.getState();
+        
+        // 3. Validate that the selected template exists in available templates
+        if (!finalTemplateId || !availableTemplates.find(t => t.id === finalTemplateId)) {
+          throw new Error(`Selected template "${finalTemplateId}" not found in available templates`);
+        }
+        
+        console.log(`[App] Loading initial workflow for template: ${finalTemplateId}`);
+        
+        // 4. Load workflow based on actual selectedTemplateId
+        const { workflow: workflowData, source } = await loadWorkflowSafe(finalTemplateId);
         console.log(`[App] Initial workflow loaded from ${source}:`, {
+          templateId: finalTemplateId,
           name: workflowData.name,
           goalsCount: workflowData.goals?.length || 0,
         });
@@ -88,6 +101,7 @@ export default function App() {
           loadScenario(defaultScenario);
         }
       } catch (err) {
+        console.error("[App] Failed to initialize app:", err);
         setWorkflowError(
           err instanceof Error ? err.message : "Failed to load workflow"
         );
@@ -96,14 +110,11 @@ export default function App() {
       }
     }
 
-    loadWorkflow();
+    initializeApp();
   }, []); // Empty dependency array - only run on mount
 
-  // Initialize template editing capabilities
-  useEffect(() => {
-    // Load available templates on mount
-    loadAvailableTemplates();
-  }, [loadAvailableTemplates]); // Include loadAvailableTemplates in dependencies
+  // Template loading is now handled in the main initialization effect above
+  // to ensure proper coordination between template selection and workflow loading
 
   const toggleTheme = () => {
     const newTheme = theme === "dark" ? "light" : "dark";

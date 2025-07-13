@@ -98,6 +98,7 @@ export function ChatPanel({
         body: JSON.stringify({
           agent: "chat",
           templateId: selectedTemplateId,
+          name: selectedTemplateId, // Add name for DO instance routing
         }),
       })
         .then(
@@ -134,7 +135,7 @@ export function ChatPanel({
     );
 
     // Create WebSocket connection to listen for workflow updates
-    const wsUrl = getWsUrl("/agents/chat/default");
+    const wsUrl = getWsUrl(`/agents/chat/${selectedTemplateId || "default"}`);
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
@@ -192,8 +193,16 @@ export function ChatPanel({
 
   const agent = useAgent({
     agent: "chat",
+    name: selectedTemplateId || "default", // Use workflow ID as agent name
     host: getApiHost(),
   });
+
+  // Monitor workflow switches for debugging
+  useEffect(() => {
+    console.log("[ChatPanel] Workflow switched to:", selectedTemplateId);
+    // The useAgent hook should handle WebSocket reconnection automatically
+    // Messages will be loaded from the new DO instance
+  }, [selectedTemplateId]);
 
   const {
     messages: agentMessages,
