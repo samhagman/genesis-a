@@ -27,9 +27,13 @@ test.describe("Workflow Chat Interface", () => {
 
   test("should load the application without errors", async ({ page }) => {
     // Verify the main interface elements are present
-    await expect(page.locator('textarea[placeholder*="Send a message"]')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('h2').first()).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text="V2 Workflow"')).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.locator('textarea[placeholder*="Send a message"]')
+    ).toBeVisible({ timeout: 10000 });
+    await expect(page.locator("h2").first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text="V2 Workflow"')).toBeVisible({
+      timeout: 10000,
+    });
 
     // Verify no JavaScript errors
     const logs = await page.evaluate(() => window.console);
@@ -50,18 +54,18 @@ test.describe("Workflow Chat Interface", () => {
     await sendButton.click();
 
     // Wait for AI response
-    await expect(page.locator('.space-y-4')).toContainText(
+    await expect(page.locator(".space-y-4")).toContainText(
       "Employee Onboarding Process",
       { timeout: 15000 }
     );
 
     // Verify workflow appears in the workflow panel
-    await expect(page.locator('.max-w-2xl')).toContainText(
+    await expect(page.locator(".max-w-2xl")).toContainText(
       "Employee Onboarding Process"
     );
 
     // Verify workflow structure in inspector
-    await expect(page.locator('div')).toContainText(
+    await expect(page.locator("div")).toContainText(
       "Employee Onboarding Process"
     );
   });
@@ -82,7 +86,7 @@ test.describe("Workflow Chat Interface", () => {
     await sendButton.click();
 
     // Wait for response and verify goal was added
-    await expect(page.locator('.max-w-2xl')).toContainText(
+    await expect(page.locator(".max-w-2xl")).toContainText(
       "Requirements Gathering",
       { timeout: 15000 }
     );
@@ -93,10 +97,9 @@ test.describe("Workflow Chat Interface", () => {
     );
     await sendButton.click();
 
-    await expect(page.locator('.max-w-2xl')).toContainText(
-      "Design Phase",
-      { timeout: 15000 }
-    );
+    await expect(page.locator(".max-w-2xl")).toContainText("Design Phase", {
+      timeout: 15000,
+    });
   });
 
   test("should add tasks to goals through chat", async ({ page }) => {
@@ -117,10 +120,9 @@ test.describe("Workflow Chat Interface", () => {
     await sendButton.click();
 
     // Verify task appears
-    await expect(page.locator('.max-w-2xl')).toContainText(
-      "market research",
-      { timeout: 15000 }
-    );
+    await expect(page.locator(".max-w-2xl")).toContainText("market research", {
+      timeout: 15000,
+    });
 
     // Add another task
     await chatInput.fill(
@@ -128,7 +130,7 @@ test.describe("Workflow Chat Interface", () => {
     );
     await sendButton.click();
 
-    await expect(page.locator('.max-w-2xl')).toContainText(
+    await expect(page.locator(".max-w-2xl")).toContainText(
       "Interview target customers",
       { timeout: 15000 }
     );
@@ -151,10 +153,9 @@ test.describe("Workflow Chat Interface", () => {
     );
     await sendButton.click();
 
-    await expect(page.locator('.max-w-2xl')).toContainText(
-      "2 weeks",
-      { timeout: 15000 }
-    );
+    await expect(page.locator(".max-w-2xl")).toContainText("2 weeks", {
+      timeout: 15000,
+    });
 
     // Add a quality constraint
     await chatInput.fill(
@@ -162,10 +163,9 @@ test.describe("Workflow Chat Interface", () => {
     );
     await sendButton.click();
 
-    await expect(page.locator('.max-w-2xl')).toContainText(
-      "95%",
-      { timeout: 15000 }
-    );
+    await expect(page.locator(".max-w-2xl")).toContainText("95%", {
+      timeout: 15000,
+    });
   });
 
   test("should view current workflow state", async ({ page }) => {
@@ -184,7 +184,7 @@ test.describe("Workflow Chat Interface", () => {
     await sendButton.click();
 
     // Verify the response contains workflow details
-    const chatMessages = page.locator('.space-y-4');
+    const chatMessages = page.locator(".space-y-4");
     await expect(chatMessages).toContainText("Development Process", {
       timeout: 15000,
     });
@@ -201,10 +201,9 @@ test.describe("Workflow Chat Interface", () => {
     await sendButton.click();
 
     // Should get an error message about no workflow
-    await expect(page.locator('.space-y-4')).toContainText(
-      "No workflow",
-      { timeout: 15000 }
-    );
+    await expect(page.locator(".space-y-4")).toContainText("No workflow", {
+      timeout: 15000,
+    });
 
     // Try invalid command
     await chatInput.fill("Do something completely invalid and nonsensical");
@@ -213,7 +212,9 @@ test.describe("Workflow Chat Interface", () => {
     // Should handle gracefully
     await page.waitForTimeout(3000);
     // Application should not crash
-    await expect(page.locator('textarea[placeholder*="Send a message"]')).toBeVisible();
+    await expect(
+      page.locator('textarea[placeholder*="Send a message"]')
+    ).toBeVisible();
   });
 
   test("should update workflow elements through chat", async ({ page }) => {
@@ -233,13 +234,11 @@ test.describe("Workflow Chat Interface", () => {
     );
     await sendButton.click();
 
-    await expect(page.locator('.max-w-2xl')).toContainText(
+    await expect(page.locator(".max-w-2xl")).toContainText(
       "Root Cause Analysis",
       { timeout: 15000 }
     );
-    await expect(
-      page.locator('.max-w-2xl')
-    ).not.toContainText("Investigation");
+    await expect(page.locator(".max-w-2xl")).not.toContainText("Investigation");
   });
 
   test("should persist workflow state across page reloads", async ({
@@ -256,19 +255,16 @@ test.describe("Workflow Chat Interface", () => {
     await page.waitForTimeout(3000);
 
     // Verify workflow exists
-    await expect(page.locator('.max-w-2xl')).toContainText(
-      "Persistence Test"
-    );
+    await expect(page.locator(".max-w-2xl")).toContainText("Persistence Test");
 
     // Reload the page
     await page.reload();
     await page.waitForTimeout(3000);
 
     // Verify workflow is still there
-    await expect(page.locator('.max-w-2xl')).toContainText(
-      "Persistence Test",
-      { timeout: 10000 }
-    );
+    await expect(page.locator(".max-w-2xl")).toContainText("Persistence Test", {
+      timeout: 10000,
+    });
   });
 
   test("should handle multiple rapid chat messages", async ({ page }) => {
@@ -291,19 +287,12 @@ test.describe("Workflow Chat Interface", () => {
     }
 
     // Verify all elements were processed
-    await expect(page.locator('.max-w-2xl')).toContainText(
-      "Rapid Fire Test",
-      { timeout: 20000 }
-    );
-    await expect(page.locator('.max-w-2xl')).toContainText(
-      "Speed Test"
-    );
-    await expect(page.locator('.max-w-2xl')).toContainText(
-      "Quick Task 1"
-    );
-    await expect(page.locator('.max-w-2xl')).toContainText(
-      "Quick Task 2"
-    );
+    await expect(page.locator(".max-w-2xl")).toContainText("Rapid Fire Test", {
+      timeout: 20000,
+    });
+    await expect(page.locator(".max-w-2xl")).toContainText("Speed Test");
+    await expect(page.locator(".max-w-2xl")).toContainText("Quick Task 1");
+    await expect(page.locator(".max-w-2xl")).toContainText("Quick Task 2");
   });
 
   test("should display helpful suggestions for workflow creation", async ({
@@ -311,9 +300,12 @@ test.describe("Workflow Chat Interface", () => {
   }) => {
     const chatInput = page.locator('textarea[placeholder*="Send a message"]');
 
-    // Check for placeholder text 
+    // Check for placeholder text
     await expect(chatInput).toBeVisible({ timeout: 10000 });
-    await expect(chatInput).toHaveAttribute("placeholder", /.*Send a message.*/i);
+    await expect(chatInput).toHaveAttribute(
+      "placeholder",
+      /.*Send a message.*/i
+    );
 
     // Verify the chat input is functional
     await chatInput.fill("Test message");

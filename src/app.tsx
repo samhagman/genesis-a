@@ -11,6 +11,7 @@ import { WorkflowPanel } from "@/components/workflow/WorkflowPanel";
 
 // Removed useWorkflowActions to prevent infinite loop
 import { getAllScenarios } from "@/state/mockScenarios";
+import { getApiUrl } from "@/config";
 import { useWorkflowStore } from "@/state/workflowStore";
 // Types and utilities
 import type { WorkflowTemplateV2 } from "@/types/workflow-v2";
@@ -120,10 +121,14 @@ export default function App() {
       setHasUnsavedChanges(false);
 
       // Load template workflow data from API (R2) with local fallback
-      const { workflow: templateWorkflow, source } = await loadWorkflowSafe(templateId);
-      console.log(`[App] Template switched to ${templateName} from ${source}:`, {
-        goalsCount: templateWorkflow.goals?.length || 0,
-      });
+      const { workflow: templateWorkflow, source } =
+        await loadWorkflowSafe(templateId);
+      console.log(
+        `[App] Template switched to ${templateName} from ${source}:`,
+        {
+          goalsCount: templateWorkflow.goals?.length || 0,
+        }
+      );
       setWorkflow(templateWorkflow);
 
       // Reinitialize scenarios for new template
@@ -150,20 +155,36 @@ export default function App() {
     setViewMode(mode);
   };
 
-  // Save template handler - local save for MVP
+  // Save template handler - saves to backend R2 storage
   const handleSaveTemplate = async () => {
     if (!selectedTemplateId || !workflow) return;
 
     try {
-      // For MVP, we'll simulate a save operation
-      // In production, this would save to Chat DO and R2 storage
       console.log(`Saving template: ${selectedTemplateId}`, workflow);
 
-      // Simulate async operation
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Save to backend via API
+      const response = await fetch(getApiUrl("/api/workflow/save"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          workflow,
+          sessionId: selectedTemplateId, // Use template ID as session ID
+        }),
+      });
+
+      const result = (await response.json()) as {
+        success: boolean;
+        message?: string;
+      };
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to save workflow");
+      }
 
       setHasUnsavedChanges(false);
-      console.log(`Successfully saved template: ${selectedTemplateId}`);
+      console.log(`Successfully saved template: ${selectedTemplateId}`, result);
     } catch (error) {
       console.error("Failed to save template:", error);
       throw error; // Re-throw so SaveTemplateButton can handle
@@ -197,7 +218,9 @@ export default function App() {
       {/* Header - fixed at top, never hidden */}
       <header className="flex-shrink-0">
         <ErrorBoundary
-          fallback={<div className="p-4 text-red-600">Template header error</div>}
+          fallback={
+            <div className="p-4 text-red-600">Template header error</div>
+          }
         >
           <TemplateEditingHeader
             onTemplateChange={handleTemplateChange}
@@ -225,6 +248,7 @@ export default function App() {
               workflow={workflow}
               selectedTemplateId={selectedTemplateId}
               onWorkflowUpdate={handleWorkflowUpdate}
+              viewMode={viewMode}
             />
           }
           centerPanel={

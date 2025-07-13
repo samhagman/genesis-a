@@ -1,0 +1,533 @@
+# Page snapshot
+
+```yaml
+- banner:
+    - 'button "📁 Template: InstaWork Shift Filling Toggle dropdown"':
+        - text: "📁 Template: InstaWork Shift Filling"
+        - img "Toggle dropdown"
+    - button "Saved" [disabled]:
+        - img
+        - text: Saved
+    - text: InstaWork Shift Filling |
+    - button "view instance"
+    - text: Edit Mode
+- main:
+    - img "Cloudflare Agents"
+    - heading "AI Assistant" [level=2]
+    - img
+    - button
+    - button:
+        - img
+    - button:
+        - img
+    - paragraph: Show me the current workflow structure
+    - paragraph: 09:04 PM
+    - paragraph: A
+    - button "viewCurrentWorkflow ✓ Completed":
+        - img
+        - heading "viewCurrentWorkflow ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: "{}"
+    - heading "Result:" [level=5]
+    - text: "\"**Workflow: InstaWork Shift Filling Workflow**\\n- Version: 2.0\\n- Goals: 3\\n\\n**Goal Summary:**\\n1. **Categorize Shift Group**\\n - Tasks: 3\\n - Constraints: 3\\n - Policies: 4\\n2. **Execute Fill Actions**\\n - Tasks: 6\\n - Constraints: 5\\n - Policies: 5\\n3. **Analyze & Improve**\\n - Tasks: 4\\n - Constraints: 4\\n - Policies: 4\""
+    - paragraph: 'The current workflow structure for the "InstaWork Shift Filling Workflow" is as follows:'
+    - 'heading "Workflow: InstaWork Shift Filling Workflow" [level=3]'
+    - list:
+        - listitem:
+            - strong: "Version:"
+            - text: "2.0"
+        - listitem:
+            - strong: "Goals:"
+            - text: "3"
+    - heading "Goal Summary:" [level=4]
+    - list:
+        - listitem:
+            - paragraph:
+                - strong: Categorize Shift Group
+            - list:
+                - listitem:
+                    - strong: "Tasks:"
+                    - text: "3"
+                - listitem:
+                    - strong: "Constraints:"
+                    - text: "3"
+                - listitem:
+                    - strong: "Policies:"
+                    - text: "4"
+        - listitem:
+            - paragraph:
+                - strong: Execute Fill Actions
+            - list:
+                - listitem:
+                    - strong: "Tasks:"
+                    - text: "6"
+                - listitem:
+                    - strong: "Constraints:"
+                    - text: "5"
+                - listitem:
+                    - strong: "Policies:"
+                    - text: "5"
+        - listitem:
+            - paragraph:
+                - strong: Analyze & Improve
+            - list:
+                - listitem:
+                    - strong: "Tasks:"
+                    - text: "4"
+                - listitem:
+                    - strong: "Constraints:"
+                    - text: "4"
+                - listitem:
+                    - strong: "Policies:"
+                    - text: "4"
+    - paragraph: If you need more detailed information about any specific goal, task, constraint, or policy, feel free to ask!
+    - paragraph: 09:04 PM
+    - paragraph: Use the viewCurrentWorkflow tool to show me the current workflow details
+    - paragraph: 09:05 PM
+    - paragraph: A
+    - button "viewCurrentWorkflow ✓ Completed":
+        - img
+        - heading "viewCurrentWorkflow ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: "{}"
+    - heading "Result:" [level=5]
+    - text: "\"**Workflow: InstaWork Shift Filling Workflow**\\n- Version: 2.0\\n- Goals: 3\\n\\n**Goal Summary:**\\n1. **Categorize Shift Group**\\n - Tasks: 3\\n - Constraints: 3\\n - Policies: 4\\n2. **Execute Fill Actions**\\n - Tasks: 6\\n - Constraints: 5\\n - Policies: 5\\n3. **Analyze & Improve**\\n - Tasks: 4\\n - Constraints: 4\\n - Policies: 4\""
+    - paragraph: 'The current workflow details for the "InstaWork Shift Filling Workflow" are as follows:'
+    - 'heading "Workflow: InstaWork Shift Filling Workflow" [level=3]'
+    - list:
+        - listitem:
+            - strong: "Version:"
+            - text: "2.0"
+        - listitem:
+            - strong: "Goals:"
+            - text: "3"
+    - heading "Goal Summary:" [level=4]
+    - list:
+        - listitem:
+            - paragraph:
+                - strong: Categorize Shift Group
+            - list:
+                - listitem:
+                    - strong: "Tasks:"
+                    - text: "3"
+                - listitem:
+                    - strong: "Constraints:"
+                    - text: "3"
+                - listitem:
+                    - strong: "Policies:"
+                    - text: "4"
+        - listitem:
+            - paragraph:
+                - strong: Execute Fill Actions
+            - list:
+                - listitem:
+                    - strong: "Tasks:"
+                    - text: "6"
+                - listitem:
+                    - strong: "Constraints:"
+                    - text: "5"
+                - listitem:
+                    - strong: "Policies:"
+                    - text: "5"
+        - listitem:
+            - paragraph:
+                - strong: Analyze & Improve
+            - list:
+                - listitem:
+                    - strong: "Tasks:"
+                    - text: "4"
+                - listitem:
+                    - strong: "Constraints:"
+                    - text: "4"
+                - listitem:
+                    - strong: "Policies:"
+                    - text: "4"
+    - paragraph: This summary provides an overview of the goals, tasks, constraints, and policies within the workflow. If you need further details on any specific component, please let me know!
+    - paragraph: 09:05 PM
+    - paragraph: Schedule a task for 10 seconds from now to check system status
+    - paragraph: 09:11 PM
+    - paragraph: A
+    - button "scheduleTask ✓ Completed":
+        - img
+        - heading "scheduleTask ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "description": "Check system status", "when": { "type": "delayed", "delayInSeconds": 10 } }'
+    - heading "Result:" [level=5]
+    - text: "\"Task scheduled for type \\\"delayed\\\" : 10\""
+    - paragraph: The task to "Check system status" has been successfully scheduled to execute 10 seconds from now. If you need any further assistance, feel free to ask!
+    - paragraph: 09:11 PM
+    - paragraph: Schedule a task for 10 seconds from now to check system status
+    - paragraph: 09:15 PM
+    - paragraph: A
+    - button "scheduleTask ✓ Completed":
+        - img
+        - heading "scheduleTask ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "description": "Check system status", "when": { "type": "delayed", "delayInSeconds": 10 } }'
+    - heading "Result:" [level=5]
+    - text: "\"Task scheduled for type \\\"delayed\\\" : 10\""
+    - paragraph: Another task to "Check system status" has been successfully scheduled to execute 10 seconds from now. If there's anything else you need, just let me know!
+    - paragraph: 09:15 PM
+    - paragraph: Show me all scheduled tasks
+    - paragraph: 09:16 PM
+    - paragraph: A
+    - button "getScheduledTasks ✓ Completed":
+        - img
+        - heading "getScheduledTasks ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: "{}"
+    - heading "Result:" [level=5]
+    - text: '"No scheduled tasks found."'
+    - paragraph: It seems there are currently no scheduled tasks found in the system. If you have any other questions or need further assistance, feel free to ask!
+    - paragraph: 09:16 PM
+    - paragraph: Create workflow "Deletion Test" with goal "Test Goal" and task "Test Task"
+    - paragraph: 09:22 PM
+    - paragraph: A
+    - button "createWorkflow ✓ Completed":
+        - img
+        - heading "createWorkflow ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "name": "Deletion Test", "description": "A workflow to test deletion functionality." }'
+    - heading "Result:" [level=5]
+    - text: "\"Created new workflow \\\"Deletion Test\\\". You can now add goals, tasks, and constraints to build out the workflow.\""
+    - button "addGoal ✓ Completed":
+        - img
+        - heading "addGoal ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "name": "Test Goal", "description": "A goal to test the addition and deletion of tasks and goals." }'
+    - heading "Result:" [level=5]
+    - text: "\"Added goal \\\"Test Goal\\\" to workflow (ID: goal-1752380529972-a4j1iea8k). You can now add tasks, constraints, and policies to this goal.\""
+    - button "addTask ✓ Completed":
+        - img
+        - heading "addTask ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "goalId": "goal-1752380529972-a4j1iea8k", "description": "A task to test the addition and deletion functionality within a goal.", "assigneeType": "human" }'
+    - heading "Result:" [level=5]
+    - text: "\"Added human task \\\"A task to test the addition and deletion functionality within a goal.\\\" to goal \\\"Test Goal\\\". Task will run indefinitely.\""
+    - paragraph: 'The workflow "Deletion Test" has been successfully created with the following components:'
+    - list:
+        - listitem:
+            - strong: "Goal:"
+            - text: Test Goal
+            - list:
+                - listitem:
+                    - strong: "Task:"
+                    - text: Test Task (A task to test the addition and deletion functionality within a goal.)
+    - paragraph: If you need to perform any deletions or further modifications, just let me know!
+    - paragraph: 09:22 PM
+    - paragraph: Create workflow "Deletion Test" with goal "Test Goal" and task "Test Task"
+    - paragraph: 09:22 PM
+    - paragraph: Create workflow "Deletion Test" with goal "Test Goal" and task "Test Task"
+    - paragraph: 09:22 PM
+    - paragraph: A
+    - button "createWorkflow ✓ Completed":
+        - img
+        - heading "createWorkflow ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "name": "Deletion Test", "description": "A workflow to test deletion functionality." }'
+    - heading "Result:" [level=5]
+    - text: "\"Created new workflow \\\"Deletion Test\\\". You can now add goals, tasks, and constraints to build out the workflow.\""
+    - button "addGoal ✓ Completed":
+        - img
+        - heading "addGoal ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "name": "Test Goal", "description": "A goal to test the addition and deletion of tasks and goals." }'
+    - heading "Result:" [level=5]
+    - text: "\"Added goal \\\"Test Goal\\\" to workflow (ID: goal-1752380561234-qf89w6ilb). You can now add tasks, constraints, and policies to this goal.\""
+    - button "addTask ✓ Completed":
+        - img
+        - heading "addTask ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "goalId": "goal-1752380561234-qf89w6ilb", "description": "A task to test the addition and deletion functionality within a goal.", "assigneeType": "human" }'
+    - heading "Result:" [level=5]
+    - text: "\"Added human task \\\"A task to test the addition and deletion functionality within a goal.\\\" to goal \\\"Test Goal\\\". Task will run indefinitely.\""
+    - paragraph: 'The workflow "Deletion Test" has been successfully created again with the following components:'
+    - list:
+        - listitem:
+            - strong: "Goal:"
+            - text: Test Goal
+            - list:
+                - listitem:
+                    - strong: "Task:"
+                    - text: Test Task (A task to test the addition and deletion functionality within a goal.)
+    - paragraph: If you need to perform any deletions or further modifications, just let me know!
+    - paragraph: 09:22 PM
+    - paragraph: Create workflow "Deletion Test" with goal "Test Goal" and task "Test Task"
+    - paragraph: 09:22 PM
+    - paragraph: A
+    - button "createWorkflow ✓ Completed":
+        - img
+        - heading "createWorkflow ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "name": "Deletion Test", "description": "A workflow to test deletion functionality." }'
+    - heading "Result:" [level=5]
+    - text: "\"Created new workflow \\\"Deletion Test\\\". You can now add goals, tasks, and constraints to build out the workflow.\""
+    - button "addGoal ✓ Completed":
+        - img
+        - heading "addGoal ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "name": "Test Goal", "description": "A goal to test the addition and deletion of tasks and goals." }'
+    - heading "Result:" [level=5]
+    - text: "\"Added goal \\\"Test Goal\\\" to workflow (ID: goal-1752380573968-kxvagh9jo). You can now add tasks, constraints, and policies to this goal.\""
+    - button "addTask ✓ Completed":
+        - img
+        - heading "addTask ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "goalId": "goal-1752380573968-kxvagh9jo", "description": "A task to test the addition and deletion functionality within a goal.", "assigneeType": "human" }'
+    - heading "Result:" [level=5]
+    - text: "\"Added human task \\\"A task to test the addition and deletion functionality within a goal.\\\" to goal \\\"Test Goal\\\". Task will run indefinitely.\""
+    - paragraph: 'The workflow "Deletion Test" has been successfully created once more with the following components:'
+    - list:
+        - listitem:
+            - strong: "Goal:"
+            - text: Test Goal
+            - list:
+                - listitem:
+                    - strong: "Task:"
+                    - text: Test Task (A task to test the addition and deletion functionality within a goal.)
+    - paragraph: If you need to perform any deletions or further modifications, just let me know!
+    - paragraph: 09:22 PM
+    - paragraph: Create workflow "Deletion Test" with goal "Test Goal" and task "Test Task"
+    - paragraph: 09:23 PM
+    - paragraph: A
+    - button "createWorkflow ✓ Completed":
+        - img
+        - heading "createWorkflow ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "name": "Deletion Test", "description": "A workflow to test deletion functionality." }'
+    - heading "Result:" [level=5]
+    - text: "\"Created new workflow \\\"Deletion Test\\\". You can now add goals, tasks, and constraints to build out the workflow.\""
+    - button "addGoal ✓ Completed":
+        - img
+        - heading "addGoal ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "name": "Test Goal", "description": "A goal to test the addition and deletion of tasks and goals." }'
+    - heading "Result:" [level=5]
+    - text: "\"Added goal \\\"Test Goal\\\" to workflow (ID: goal-1752380590194-dw2mkrdg5). You can now add tasks, constraints, and policies to this goal.\""
+    - button "addTask ✓ Completed":
+        - img
+        - heading "addTask ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "goalId": "goal-1752380590194-dw2mkrdg5", "description": "A task to test the addition and deletion functionality within a goal.", "assigneeType": "human" }'
+    - heading "Result:" [level=5]
+    - text: "\"Added human task \\\"A task to test the addition and deletion functionality within a goal.\\\" to goal \\\"Test Goal\\\". Task will run indefinitely.\""
+    - paragraph: 'The workflow "Deletion Test" has been successfully created again with the following components:'
+    - list:
+        - listitem:
+            - strong: "Goal:"
+            - text: Test Goal
+            - list:
+                - listitem:
+                    - strong: "Task:"
+                    - text: Test Task (A task to test the addition and deletion functionality within a goal.)
+    - paragraph: If you need to perform any deletions or further modifications, just let me know!
+    - paragraph: 09:23 PM
+    - paragraph: Create a new workflow called "Customer Support Process" for handling customer inquiries and support tickets
+    - paragraph: 01:12 AM
+    - paragraph: Create a new workflow called "Customer Support Process" for handling customer inquiries and support tickets
+    - paragraph: 01:12 AM
+    - paragraph: A
+    - button "createWorkflow ✓ Completed":
+        - img
+        - heading "createWorkflow ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "name": "Customer Support Process", "description": "A workflow for handling customer inquiries and support tickets." }'
+    - heading "Result:" [level=5]
+    - text: "\"Created new workflow \\\"Customer Support Process\\\". You can now add goals, tasks, and constraints to build out the workflow.\""
+    - paragraph: The workflow "Customer Support Process" has been successfully created. This workflow is designed for handling customer inquiries and support tickets. You can now add goals, tasks, and constraints to further develop the workflow. If you need assistance with that, feel free to ask!
+    - paragraph: 01:12 AM
+    - paragraph: Create workflow "Test Deletion" with goal "Goal to Delete" and some tasks
+    - paragraph: 01:12 AM
+    - paragraph: Create workflow "Test Deletion" with goal "Goal to Delete" and some tasks
+    - paragraph: 01:12 AM
+    - paragraph: A
+    - button "createWorkflow ✓ Completed":
+        - img
+        - heading "createWorkflow ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "name": "Test Deletion", "description": "A workflow to test the deletion of goals and tasks." }'
+    - heading "Result:" [level=5]
+    - text: "\"Created new workflow \\\"Test Deletion\\\". You can now add goals, tasks, and constraints to build out the workflow.\""
+    - button "addGoal ✓ Completed":
+        - img
+        - heading "addGoal ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "name": "Goal to Delete", "description": "A goal created to test the deletion functionality." }'
+    - heading "Result:" [level=5]
+    - text: "\"Added goal \\\"Goal to Delete\\\" to workflow (ID: goal-1752394365976-9eftt2bny). You can now add tasks, constraints, and policies to this goal.\""
+    - button "addTask ✓ Completed":
+        - img
+        - heading "addTask ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "goalId": "goal-1752394365976-9eftt2bny", "description": "Task 1 for testing deletion functionality.", "assigneeType": "human" }'
+    - heading "Result:" [level=5]
+    - text: "\"Added human task \\\"Task 1 for testing deletion functionality.\\\" to goal \\\"Goal to Delete\\\". Task will run indefinitely.\""
+    - button "addTask ✓ Completed":
+        - img
+        - heading "addTask ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "goalId": "goal-1752394365976-9eftt2bny", "description": "Task 2 for testing deletion functionality.", "assigneeType": "human" }'
+    - heading "Result:" [level=5]
+    - text: "\"Added human task \\\"Task 2 for testing deletion functionality.\\\" to goal \\\"Goal to Delete\\\". Task will run indefinitely.\""
+    - button "addTask ✓ Completed":
+        - img
+        - heading "addTask ✓ Completed" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "goalId": "goal-1752394365976-9eftt2bny", "description": "Task 3 for testing deletion functionality.", "assigneeType": "human" }'
+    - heading "Result:" [level=5]
+    - text: "\"Added human task \\\"Task 3 for testing deletion functionality.\\\" to goal \\\"Goal to Delete\\\". Task will run indefinitely.\""
+    - paragraph: 'The workflow "Test Deletion" has been successfully created with the following components:'
+    - list:
+        - listitem:
+            - strong: "Goal:"
+            - text: Goal to Delete
+            - list:
+                - listitem:
+                    - strong: "Task 1:"
+                    - text: Task 1 for testing deletion functionality.
+                - listitem:
+                    - strong: "Task 2:"
+                    - text: Task 2 for testing deletion functionality.
+                - listitem:
+                    - strong: "Task 3:"
+                    - text: Task 3 for testing deletion functionality.
+    - paragraph: This setup is ready for testing the deletion of goals and tasks. If you need to proceed with deletions or any other modifications, just let me know!
+    - paragraph: 01:12 AM
+    - paragraph: Delete the "Goal to Delete" goal completely
+    - paragraph: 01:12 AM
+    - paragraph: A
+    - button "deleteGoal":
+        - img
+        - heading "deleteGoal" [level=4]
+        - img
+    - heading "Arguments:" [level=5]
+    - text: '{ "goalId": "goal-1752394365976-9eftt2bny", "confirmationPhrase": "DELETE GOAL" }'
+    - button "Reject"
+    - button "Approve"
+    - textbox "Please respond to the tool confirmation above..." [disabled]
+    - button "Send message" [disabled]:
+        - img
+    - heading "InstaWork Shift Filling Workflow" [level=2]
+    - paragraph: Automatically optimize shift group fill rates through intelligent categorization, targeted interventions, and continuous improvement
+    - text: V2 Workflow • 2.0 🔄
+    - 'heading "Goal 1: Categorize Shift Group" [level=3]'
+    - paragraph: Analyze incoming shift group to determine appropriate intervention level and collect relevant information for downstream processing
+    - text: Progress 30% ⏱️ 30m timeout 3 Constraints 4 Policies 3 Tasks 1 Forms
+    - button "🚨 Constraints (3) ▶":
+        - text: 🚨
+        - heading "Constraints (3)" [level=4]
+        - text: ▶
+    - button "⚡ Policies (4) ▶":
+        - text: ⚡
+        - heading "Policies (4)" [level=4]
+        - text: ▶
+    - button "📋 Tasks (3) ▶":
+        - text: 📋
+        - heading "Tasks (3)" [level=4]
+        - text: ▶
+    - button "📝 Forms (1) ▶":
+        - text: 📝
+        - heading "Forms (1)" [level=4]
+        - text: ▶
+    - text: ⏳
+    - 'heading "Goal 2: Execute Fill Actions" [level=3]'
+    - paragraph: Deploy targeted interventions to maximize probability of filling all shifts in the group
+    - text: 🔄 Continuous 5 Constraints 5 Policies 6 Tasks 3 Forms
+    - button "🚨 Constraints (5) ▶":
+        - text: 🚨
+        - heading "Constraints (5)" [level=4]
+        - text: ▶
+    - button "⚡ Policies (5) ▶":
+        - text: ⚡
+        - heading "Policies (5)" [level=4]
+        - text: ▶
+    - button "📋 Tasks (6) ▶":
+        - text: 📋
+        - heading "Tasks (6)" [level=4]
+        - text: ▶
+    - button "📝 Forms (3) ▶":
+        - text: 📝
+        - heading "Forms (3)" [level=4]
+        - text: ▶
+    - text: ⏳
+    - 'heading "Goal 3: Analyze & Improve" [level=3]'
+    - paragraph: Post-shift analysis to identify patterns, anomalies, and improvement opportunities across all workflow components
+    - text: ⏱️ 120m timeout 4 Constraints 4 Policies 4 Tasks 3 Forms
+    - button "🚨 Constraints (4) ▶":
+        - text: 🚨
+        - heading "Constraints (4)" [level=4]
+        - text: ▶
+    - button "⚡ Policies (4) ▶":
+        - text: ⚡
+        - heading "Policies (4)" [level=4]
+        - text: ▶
+    - button "📋 Tasks (4) ▶":
+        - text: 📋
+        - heading "Tasks (4)" [level=4]
+        - text: ▶
+    - button "📝 Forms (3) ▶":
+        - text: 📝
+        - heading "Forms (3)" [level=4]
+        - text: ▶
+    - text: ⏳
+    - 'heading "Goal 4: Final Quality Check" [level=3]'
+    - paragraph: Ensure all shifts are filled correctly and meet quality standards before finalizing the schedule.
+    - text: 0 Constraints 0 Policies 0 Tasks 0 Forms ⏳
+    - 'heading "Goal 5: Customer Satisfaction Survey" [level=3]'
+    - paragraph: Collect feedback from customers to assess satisfaction levels and identify areas for improvement.
+    - text: 0 Constraints 0 Policies 0 Tasks 0 Forms ⏳
+    - 'heading "Goal 6: Customer Satisfaction Survey Analysis" [level=3]'
+    - paragraph: Analyze the feedback collected from the customer satisfaction survey to identify trends and actionable insights.
+    - text: 0 Constraints 0 Policies 0 Tasks 0 Forms ⏳
+    - 'heading "Goal 7: Real-Time Test Goal" [level=3]'
+    - paragraph: This goal is added to verify the real-time update capabilities of the workflow system.
+    - text: 0 Constraints 0 Policies 0 Tasks 0 Forms ⏳
+    - 'heading "Goal 8: Speed Goal" [level=3]'
+    - paragraph: Focus on optimizing the speed and efficiency of the workflow processes.
+    - text: 0 Constraints 0 Policies 0 Tasks 0 Forms ⏳
+    - 'heading "Goal 9: Speed Test" [level=3]'
+    - paragraph: Evaluate the efficiency and speed of task execution within the workflow.
+    - text: 0 Constraints 0 Policies 0 Tasks 0 Forms ⏳
+    - 'heading "Goal 10: Requirements Gathering" [level=3]'
+    - paragraph: Collect and document project requirements to ensure all stakeholder needs are captured and understood.
+    - text: 0 Constraints 0 Policies 0 Tasks 0 Forms ⏳
+    - 'heading "Goal 11: Requirements Gathering" [level=3]'
+    - paragraph: Collect and document project requirements to ensure all stakeholder needs are captured and understood.
+    - text: 0 Constraints 0 Policies 0 Tasks 0 Forms ⏳
+    - 'heading "Goal 12: Implementation" [level=3]'
+    - paragraph: Develop and implement the software features according to the design specifications.
+    - text: 0 Constraints 0 Policies 0 Tasks 0 Forms
+    - heading "InstaWork Shift Filling Workflow" [level=3]
+    - paragraph: Automatically optimize shift group fill rates through intelligent categorization, targeted interventions, and continuous improvement
+    - heading "Goals" [level=4]
+    - paragraph: "12"
+    - heading "Version" [level=4]
+    - paragraph: "2.0"
+    - img
+    - heading "Version History" [level=3]
+    - paragraph: No version history available
+    - paragraph: 💡 Click on any goal, constraint, policy, task, or form in the workflow to see detailed information.
+```

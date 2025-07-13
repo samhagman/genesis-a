@@ -7,7 +7,12 @@ export function findSelectedItem(
   type: "goal" | "subtask"
 ): SelectedItem | null {
   if (type === "goal") {
-    const goal = workflow.goals.find((g) => g.goalId === itemId);
+    // Support both V2 (id) and V1 (goalId)
+    const goal = workflow.goals.find(
+      (g) =>
+        (typeof g === "object" && "id" in g && g.id === itemId) ||
+        (typeof g === "object" && "goalId" in g && g.goalId === itemId)
+    );
     if (goal) {
       return {
         type: "goal",
@@ -17,7 +22,12 @@ export function findSelectedItem(
     }
   } else if (type === "subtask") {
     for (const goal of workflow.goals) {
-      const subtask = goal.subtasks.find((s) => s.subtaskId === itemId);
+      // Support both V2 (id) and V1 (subtaskId)
+      const subtask = goal.subtasks.find(
+        (s) =>
+          (typeof s === "object" && "id" in s && s.id === itemId) ||
+          (typeof s === "object" && "subtaskId" in s && s.subtaskId === itemId)
+      );
       if (subtask) {
         return {
           type: "subtask",
@@ -37,13 +47,21 @@ export function getItemBreadcrumb(
   type: "goal" | "subtask"
 ): string[] {
   if (type === "goal") {
-    const goal = workflow.goals.find((g) => g.goalId === itemId);
+    const goal = workflow.goals.find(
+      (g) =>
+        (typeof g === "object" && "id" in g && g.id === itemId) ||
+        (typeof g === "object" && "goalId" in g && g.goalId === itemId)
+    );
     return goal ? [goal.name] : [];
   }
 
   if (type === "subtask") {
     for (const goal of workflow.goals) {
-      const subtask = goal.subtasks.find((s) => s.subtaskId === itemId);
+      const subtask = goal.subtasks.find(
+        (s) =>
+          (typeof s === "object" && "id" in s && s.id === itemId) ||
+          (typeof s === "object" && "subtaskId" in s && s.subtaskId === itemId)
+      );
       if (subtask) {
         return [goal.name, subtask.name];
       }

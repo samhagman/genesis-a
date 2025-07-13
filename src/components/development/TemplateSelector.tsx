@@ -24,7 +24,6 @@ export function TemplateSelector({
     hasUnsavedChanges,
     templateLoading,
     setSelectedTemplate,
-    loadAvailableTemplates,
     setHasUnsavedChanges,
   } = useWorkflowStore();
 

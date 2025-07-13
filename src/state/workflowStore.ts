@@ -13,6 +13,7 @@ import type {
 } from "@/types/workflow-instance";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
+import { getApiUrl } from "@/config";
 
 // Template metadata for the template selector dropdown
 export interface TemplateMetadata {
@@ -187,37 +188,35 @@ export const useWorkflowStore = create<WorkflowStoreState>()(
       });
 
       try {
-        // For MVP, we'll use hardcoded templates based on existing workflow files
-        // In production, this would fetch from an API endpoint
-        const mockTemplates: TemplateMetadata[] = [
-          {
-            id: "instawork-shift-filling",
-            name: "InstaWork Shift Filling",
-            version: "2.0",
-            lastModified: "2025-01-15T14:30:00Z",
-            author: "operations_team",
-            tags: ["shifts", "scheduling", "automation"],
+        // Fetch templates from API endpoint
+        const response = await fetch(getApiUrl("/api/templates"), {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
           },
-          {
-            id: "employee-onboarding",
-            name: "Employee Onboarding Process V2",
-            version: "2.0",
-            lastModified: "2025-01-15T14:30:00Z",
-            author: "hr_team",
-            tags: ["onboarding", "hr", "compliance"],
-          },
-        ];
+        });
+
+        const result = (await response.json()) as {
+          success: boolean;
+          message?: string;
+          templates?: TemplateMetadata[];
+        };
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.message || "Failed to load templates");
+        }
+
+        const templates: TemplateMetadata[] = result.templates || [];
 
         set((state) => {
-          state.availableTemplates = mockTemplates;
+          state.availableTemplates = templates;
           state.templateLoading = false;
 
-          // Comment out automatic template selection to debug infinite loop
           // Set default selection if none exists
-          // if (!state.selectedTemplateId && mockTemplates.length > 0) {
-          //   state.selectedTemplateId = mockTemplates[0].id;
-          //   state.selectedTemplateName = mockTemplates[0].name;
-          // }
+          if (!state.selectedTemplateId && templates.length > 0) {
+            state.selectedTemplateId = templates[0].id;
+            state.selectedTemplateName = templates[0].name;
+          }
         });
       } catch (error) {
         console.error("Failed to load available templates:", error);

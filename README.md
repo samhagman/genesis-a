@@ -34,13 +34,27 @@ A modern workflow visualization application built on Cloudflare Workers, designe
 npm install
 ```
 
-2. Run locally:
+2. Start development environment:
 
 ```bash
-npm start
+npm run dev
 ```
 
-3. Deploy to Cloudflare Workers:
+3. View logs and status:
+
+```bash
+npm run dev:logs    # View live logs from both frontend and backend
+npm run dev:status  # Check running services
+```
+
+4. Stop development:
+
+```bash
+npm run dev:stop    # Graceful stop
+npm run dev:clean   # Nuclear cleanup (kills all processes)
+```
+
+5. Deploy to Cloudflare Workers:
 
 ```bash
 npm run deploy
