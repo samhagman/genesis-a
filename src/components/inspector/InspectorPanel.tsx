@@ -752,7 +752,7 @@ export function InspectorPanel({
 
   // Show workflow overview when nothing is selected
   return (
-    <div className="h-full p-6 overflow-y-auto">
+    <div className="h-full p-6 overflow-y-auto" data-testid="inspector-panel">
       <div className="space-y-6">
         <div className="text-center space-y-2">
           <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">

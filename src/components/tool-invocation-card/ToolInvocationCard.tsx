@@ -36,6 +36,7 @@ export function ToolInvocationCard({
       className={`p-4 my-3 w-full max-w-[500px] rounded-md bg-neutral-100 dark:bg-neutral-900 ${
         needsConfirmation ? "" : "border-[#F48120]/30"
       } overflow-hidden`}
+      data-testid={needsConfirmation ? "confirmation-dialog" : undefined}
     >
       <button
         type="button"
@@ -70,7 +71,12 @@ export function ToolInvocationCard({
             <h5 className="text-xs font-medium mb-1 text-muted-foreground">
               Arguments:
             </h5>
-            <pre className="bg-background/80 p-2 rounded-md text-xs overflow-auto whitespace-pre-wrap break-words max-w-[450px]">
+            <pre
+              className="bg-background/80 p-2 rounded-md text-xs overflow-auto whitespace-pre-wrap break-words max-w-[450px]"
+              data-testid={
+                needsConfirmation ? "confirmation-message" : undefined
+              }
+            >
               {JSON.stringify(toolInvocation.args, null, 2)}
             </pre>
           </div>
@@ -80,6 +86,7 @@ export function ToolInvocationCard({
               <Button
                 variant="primary"
                 size="sm"
+                data-testid="cancel-button"
                 onClick={() =>
                   addToolResult({
                     toolCallId,
@@ -93,6 +100,7 @@ export function ToolInvocationCard({
                 <Button
                   variant="primary"
                   size="sm"
+                  data-testid="confirm-button"
                   onClick={() =>
                     addToolResult({
                       toolCallId,
