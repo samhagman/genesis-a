@@ -18,6 +18,7 @@ import { Avatar } from "@/components/avatar/Avatar";
 // Component imports
 import { Button } from "@/components/button/Button";
 import { Card } from "@/components/card/Card";
+import { DropdownMenu } from "@/components/dropdown/DropdownMenu";
 import { MemoizedMarkdown } from "@/components/memoized-markdown";
 import { Textarea } from "@/components/textarea/Textarea";
 import { Toggle } from "@/components/toggle/Toggle";
@@ -72,6 +73,8 @@ export function ChatPanel({
     }>
   >([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [hasLoadedMessages, setHasLoadedMessages] = useState(false);
+  const [lastMessageDate, setLastMessageDate] = useState<string | null>(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -204,6 +207,50 @@ export function ChatPanel({
     // Messages will be loaded from the new DO instance
   }, [selectedTemplateId]);
 
+  // Add getInitialMessages function to load persisted messages
+  const getInitialMessages = useCallback(
+    async (options: { agent: string; name: string; url: string }) => {
+      const templateId = options.name;
+      if (!templateId || templateId === "default") return [];
+
+      try {
+        console.log(
+          `📥 [ChatPanel] Loading messages for template: ${templateId}`
+        );
+        const response = await fetch(
+          `${getApiUrl(
+            `/agents/chat/${templateId}/messages`
+          )}?templateId=${templateId}`
+        );
+        const data = (await response.json()) as { messages: Message[] };
+
+        if (data.messages && data.messages.length > 0) {
+          console.log(
+            `✅ [ChatPanel] Loaded ${data.messages.length} messages for ${templateId}`
+          );
+          setHasLoadedMessages(true);
+          // Get last message timestamp
+          const lastMsg = data.messages[data.messages.length - 1];
+          setLastMessageDate(
+            lastMsg.createdAt ? new Date(lastMsg.createdAt).toISOString() : null
+          );
+          return data.messages;
+        }
+        setHasLoadedMessages(false);
+        setLastMessageDate(null);
+        return [];
+      } catch (error) {
+        console.error(
+          `❌ [ChatPanel] Failed to load messages for ${templateId}:`,
+          error
+        );
+        setHasLoadedMessages(false);
+        return [];
+      }
+    },
+    []
+  );
+
   const {
     messages: agentMessages,
     input: agentInput,
@@ -216,7 +263,44 @@ export function ChatPanel({
   } = useAgentChat({
     agent,
     maxSteps: 5,
+    getInitialMessages, // Add this option
   });
+
+  // Add clear functions
+  const clearTemplateHistory = async () => {
+    if (!selectedTemplateId) return;
+
+    try {
+      await fetch(getApiUrl(`/agents/chat/${selectedTemplateId}/clear`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateId: selectedTemplateId }),
+      });
+      clearHistory(); // Clear frontend state
+      setHasLoadedMessages(false);
+      setLastMessageDate(null);
+    } catch (error) {
+      console.error("Failed to clear template history:", error);
+    }
+  };
+
+  const clearAllHistory = async () => {
+    try {
+      await fetch(
+        getApiUrl(`/agents/chat/${selectedTemplateId || "default"}/clear`),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clearAll: true }),
+        }
+      );
+      clearHistory(); // Clear frontend state
+      setHasLoadedMessages(false);
+      setLastMessageDate(null);
+    } catch (error) {
+      console.error("Failed to clear all history:", error);
+    }
+  };
 
   // Handle workflow editing submission
   const handleWorkflowEdit = async (userMessage: string) => {
@@ -364,15 +448,33 @@ export function ChatPanel({
               {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
             </Button>
 
-            <Button
-              variant="ghost"
-              size="md"
-              shape="square"
-              className="rounded-full h-9 w-9"
-              onClick={clearHistory}
+            <DropdownMenu
+              align="end"
+              side="bottom"
+              MenuItems={[
+                {
+                  type: "button",
+                  label: `Clear ${
+                    selectedTemplateId ? "Current Template" : "Template"
+                  } History`,
+                  onClick: clearTemplateHistory,
+                },
+                {
+                  type: "button",
+                  label: "Clear All History",
+                  onClick: clearAllHistory,
+                },
+              ]}
             >
-              <Trash size={20} />
-            </Button>
+              <Button
+                variant="ghost"
+                size="md"
+                shape="square"
+                className="rounded-full h-9 w-9"
+              >
+                <Trash size={20} />
+              </Button>
+            </DropdownMenu>
           </div>
 
           {/* Agent Status */}
@@ -387,6 +489,18 @@ export function ChatPanel({
             className="flex-1 overflow-y-auto p-4 space-y-4"
             data-testid="chat-messages"
           >
+            {/* Conversation continuation banner */}
+            {hasLoadedMessages && lastMessageDate && (
+              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                  <span>
+                    Continuing previous conversation from{" "}
+                    {new Date(lastMessageDate).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            )}
             {agentMessages.length === 0 && editHistory.length === 0 && (
               <div className="h-full flex items-center justify-center">
                 <Card className="p-6 max-w-md mx-auto bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700">

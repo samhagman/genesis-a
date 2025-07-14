@@ -9,6 +9,7 @@ import {
   createDataStreamResponse,
   streamText,
 } from "ai";
+import type { Message } from "@ai-sdk/ui-utils";
 import {
   type WorkflowEditingEnv,
   routeWorkflowEditingAPI,
@@ -92,6 +93,61 @@ export class Chat extends AIChatAgent<Env> {
 
     // ❌ REMOVED: this.initializeWorkflowState();
     // This async call was causing a race condition - moved to entry point methods
+  }
+
+  /**
+   * Store a message for a specific template in DO storage
+   * Uses the pattern msg:${templateId}:${messageId} for storage keys
+   */
+  async storeMessage(templateId: string, message: Message): Promise<void> {
+    const key = `msg:${templateId}:${message.id}`;
+    try {
+      await this.doState.storage.put(key, JSON.stringify(message));
+      console.log(
+        `💾 [Chat DO] Stored message for template ${templateId}:`,
+        message.id
+      );
+    } catch (error) {
+      console.error(
+        `❌ [Chat DO] Failed to store message ${message.id}:`,
+        error
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieve all messages for a specific template from DO storage
+   * Returns messages sorted by timestamp (oldest first)
+   */
+  async getMessages(templateId: string): Promise<Message[]> {
+    const prefix = `msg:${templateId}:`;
+    try {
+      const keys = await this.doState.storage.list({ prefix });
+      const messages: Message[] = [];
+
+      for (const [key, value] of keys) {
+        try {
+          const message = JSON.parse(value as string) as Message;
+          messages.push(message);
+        } catch (error) {
+          console.error(`❌ [Chat DO] Failed to parse message ${key}:`, error);
+        }
+      }
+
+      // Sort by createdAt timestamp or by id if createdAt is not available
+      return messages.sort((a, b) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return aTime - bTime || a.id.localeCompare(b.id);
+      });
+    } catch (error) {
+      console.error(
+        `❌ [Chat DO] Failed to get messages for ${templateId}:`,
+        error
+      );
+      return [];
+    }
   }
 
   /**
@@ -379,6 +435,75 @@ export class Chat extends AIChatAgent<Env> {
       } catch (error) {
         console.error("❌ [Chat DO] Failed to set context:", error);
         return new Response("Internal Server Error", { status: 500 });
+      }
+    }
+
+    // Handle message retrieval endpoint
+    if (url.pathname.endsWith("/messages") && request.method === "GET") {
+      const templateId = url.searchParams.get("templateId");
+      if (!templateId) {
+        return new Response(JSON.stringify({ error: "templateId required" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      try {
+        const messages = await this.getMessages(templateId);
+        console.log(
+          `📥 [Chat DO] Retrieved ${messages.length} messages for template ${templateId}`
+        );
+        return new Response(JSON.stringify({ messages }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (error) {
+        console.error(
+          `❌ [Chat DO] Failed to get messages for ${templateId}:`,
+          error
+        );
+        return new Response(JSON.stringify({ messages: [] }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // Handle clear messages endpoint
+    if (url.pathname.endsWith("/clear") && request.method === "POST") {
+      try {
+        const body = (await request.json()) as {
+          templateId?: string;
+          clearAll?: boolean;
+        };
+        const { templateId, clearAll } = body;
+
+        if (clearAll) {
+          // Clear all messages for all templates
+          const keys = await this.doState.storage.list({ prefix: "msg:" });
+          await Promise.all(
+            [...keys.keys()].map((key) => this.doState.storage.delete(key))
+          );
+          console.log("🧹 [Chat DO] Cleared all messages");
+        } else if (templateId) {
+          // Clear messages for specific template
+          const prefix = `msg:${templateId}:`;
+          const keys = await this.doState.storage.list({ prefix });
+          await Promise.all(
+            [...keys.keys()].map((key) => this.doState.storage.delete(key))
+          );
+          console.log(
+            `🧹 [Chat DO] Cleared messages for template ${templateId}`
+          );
+        }
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (error) {
+        console.error("❌ [Chat DO] Failed to clear messages:", error);
+        return new Response(JSON.stringify({ success: false }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
       }
     }
 
@@ -808,6 +933,18 @@ Always be helpful and provide clear explanations about the workflow components.`
           contentPreview: `${msg.content?.substring(0, 50)}...`,
         })),
       });
+
+      // Store the latest user message if it hasn't been stored yet
+      if (this.messages.length > 0 && this.currentTemplateId) {
+        const latestMessage = this.messages[this.messages.length - 1];
+        if (latestMessage.role === "user") {
+          console.log(
+            "💾 [Chat DO] Storing user message for template:",
+            this.currentTemplateId
+          );
+          await this.storeMessage(this.currentTemplateId, latestMessage);
+        }
+      }
     }
 
     console.log("🔄 [Chat DO] Ensuring workflow is initialized...");
@@ -893,6 +1030,24 @@ Always be helpful and provide clear explanations about the workflow components.`
                 toolCallCount: args.toolCalls?.length || 0,
                 responseLength: args.text?.length || 0,
               });
+
+              // Store the assistant message
+              if (this.currentTemplateId && args.text) {
+                const assistantMessage: Message = {
+                  id: crypto.randomUUID(),
+                  role: "assistant",
+                  content: args.text,
+                  createdAt: new Date(),
+                };
+                console.log(
+                  "💾 [Chat DO] Storing assistant message for template:",
+                  this.currentTemplateId
+                );
+                await this.storeMessage(
+                  this.currentTemplateId,
+                  assistantMessage
+                );
+              }
 
               // Call the provided onFinish callback
               console.log(
@@ -1201,10 +1356,10 @@ export default {
         const chatDO = env.Chat.get(doId);
 
         // Send internal request to Chat DO to set context
-        console.log("🔗 [Server] Calling Chat DO with context", { 
+        console.log("🔗 [Server] Calling Chat DO with context", {
           templateId,
           instanceName,
-          doId: doId.toString()
+          doId: doId.toString(),
         });
         const contextResponse = await chatDO.fetch(
           new Request(`${new URL(request.url).origin}/_internal/set-context`, {
@@ -1331,9 +1486,10 @@ export default {
                 const workflow = await r2Object.json<WorkflowTemplateV2>();
                 if (validateWorkflowV2(workflow)) {
                   // Filter out AI-generated workflows from templates list
-                  const isAIGenerated = templateId.startsWith('wf-') || 
-                                      workflow.metadata?.author === 'AI Agent';
-                  
+                  const isAIGenerated =
+                    templateId.startsWith("wf-") ||
+                    workflow.metadata?.author === "AI Agent";
+
                   if (!isAIGenerated) {
                     templates.push({
                       id: templateId,
