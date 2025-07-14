@@ -87,12 +87,13 @@
       "Bash(timeout:*)",
       "Bash(git commit:*)",
       "mcp__playwright__playwright_select",
-      "mcp__zen__analyze"
+      "mcp__zen__analyze",
+      "Bash(prettier --write src/server.ts)",
+      "mcp__zen__challenge",
+      "mcp__zen__precommit"
     ],
     "deny": []
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [
-    "zen"
-  ]
+  "enabledMcpjsonServers": ["zen"]
 }
