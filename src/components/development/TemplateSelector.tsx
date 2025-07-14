@@ -28,11 +28,6 @@ export function TemplateSelector({
   } = useWorkflowStore();
 
   const [isOpen, setIsOpen] = useState(false);
-  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
-  const [pendingTemplate, setPendingTemplate] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
 
   // Prevent render if store is not properly initialized
   if (selectedTemplateId === undefined || selectedTemplateName === undefined) {
@@ -57,38 +52,15 @@ export function TemplateSelector({
   };
 
   const handleTemplateSelect = (template: TemplateMetadata) => {
-    if (hasUnsavedChanges && template.id !== selectedTemplateId) {
-      // Show confirmation dialog for unsaved changes
-      setPendingTemplate({ id: template.id, name: template.name });
-      setShowUnsavedWarning(true);
-      return;
-    }
-
-    // No unsaved changes, proceed with template switch
-    performTemplateSwitch(template.id, template.name);
-  };
-
-  const performTemplateSwitch = (templateId: string, templateName: string) => {
-    setSelectedTemplate(templateId, templateName);
+    // Directly switch templates without checking for unsaved changes
+    setSelectedTemplate(template.id, template.name);
     setIsOpen(false);
-    setShowUnsavedWarning(false);
-    setPendingTemplate(null);
+
+    // Clear unsaved changes flag when switching templates
+    setHasUnsavedChanges(false);
 
     // Notify parent component
-    onTemplateChange?.(templateId, templateName);
-  };
-
-  const handleConfirmSwitch = () => {
-    if (pendingTemplate) {
-      // User confirmed, discard unsaved changes and switch
-      setHasUnsavedChanges(false);
-      performTemplateSwitch(pendingTemplate.id, pendingTemplate.name);
-    }
-  };
-
-  const handleCancelSwitch = () => {
-    setShowUnsavedWarning(false);
-    setPendingTemplate(null);
+    onTemplateChange?.(template.id, template.name);
   };
 
   if (templateLoading) {
@@ -233,57 +205,6 @@ export function TemplateSelector({
           />
         )}
       </div>
-
-      {/* Unsaved Changes Warning Modal */}
-      {showUnsavedWarning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-xl border border-neutral-200 dark:border-neutral-700 p-6 max-w-md mx-4">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-full">
-                <svg
-                  className="w-5 h-5 text-orange-600 dark:text-orange-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
-                  />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-2">
-                  Unsaved Changes
-                </h3>
-                <p className="text-neutral-600 dark:text-neutral-300 mb-4">
-                  You have unsaved changes to "{selectedTemplateName}".
-                  Switching to "{pendingTemplate?.name}" will discard these
-                  changes.
-                </p>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={handleConfirmSwitch}
-                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors"
-                  >
-                    Discard Changes
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCancelSwitch}
-                    className="px-4 py-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 text-neutral-900 dark:text-neutral-100 rounded-lg transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
