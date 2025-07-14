@@ -848,7 +848,10 @@ Workflow Description: ${this.currentWorkflow.objective || "No description provid
 This workflow has ${this.currentWorkflow.goals?.length || 0} goals:
 ${
   this.currentWorkflow.goals
-    ?.map((goal, idx) => `${idx + 1}. ${goal.name}: ${goal.description}`)
+    ?.map(
+      (goal, idx) =>
+        `${idx + 1}. ${goal.name}: ${goal.description} (ID: ${goal.id})`
+    )
     .join("\n") || "No goals defined"
 }
 
@@ -859,6 +862,23 @@ When the user asks about the workflow, you have access to tools that let you:
 - Add, edit, or delete goals
 - Manage constraints, policies, tasks, and forms
 - Analyze workflow patterns
+
+CRITICAL INSTRUCTIONS FOR GOAL DELETION:
+When a user asks to delete a goal (e.g., "delete goal 3", "remove the third goal", "delete Test Data Flow goal"):
+1. First use viewCurrentWorkflow to display all goals with their IDs
+2. Identify which goal they want to delete by:
+   - If they say "goal 3", find the goal at position 3 in the list
+   - If they name a goal, find the goal with that name
+   - Note the actual goal ID (format: goal-timestamp-randomstring)
+3. Ask for confirmation: "I found goal [number] '[goal name]' (ID: [actual goal ID]). To confirm deletion of this goal and all its contents, please type exactly: DELETE GOAL"
+4. Wait for the user to respond
+5. If the user's next message is exactly "DELETE GOAL", then immediately call the deleteGoal tool with:
+   - goalId: the actual goal ID you identified earlier (not the number)
+   - confirmationPhrase: "DELETE GOAL"
+6. If the user types anything else, cancel the deletion
+
+IMPORTANT: After the user types "DELETE GOAL", you MUST call the deleteGoal tool. Do not just acknowledge their message.
+NEVER provide the confirmation phrase yourself. The user must type it.
 
 Always be helpful and provide clear explanations about the workflow components.`;
 
