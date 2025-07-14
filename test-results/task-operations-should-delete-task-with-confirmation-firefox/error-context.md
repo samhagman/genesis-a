@@ -1,0 +1,267 @@
+# Page snapshot
+
+```yaml
+- banner:
+    - 'button "📁 Template: InstaWork Shift Filling Unsaved changes Toggle dropdown"':
+        - text: "📁 Template: InstaWork Shift Filling"
+        - img "Toggle dropdown"
+    - button "Save template":
+        - img
+        - text: Save template
+    - text: InstaWork Shift Filling |
+    - button "view instance"
+    - text: Edit Mode
+- main:
+    - img "Cloudflare Agents"
+    - heading "AI Assistant" [level=2]
+    - img
+    - button
+    - button:
+        - img
+    - button:
+        - button:
+            - img
+    - paragraph: A
+    - paragraph: Hello! How can I assist you with the "InstaWork Shift Filling Workflow" today? Whether you need help understanding the workflow, editing it, or have specific questions about its structure and purpose, feel free to ask!
+    - paragraph: 02:50 PM
+    - paragraph: It looks like you're testing the communication. How can I assist you with the "InstaWork Shift Filling Workflow"? If you have any questions or need help with specific tasks or goals, just let me know!
+    - paragraph: 03:03 PM
+    - paragraph: Testing InstaWork workflow persistence!
+    - paragraph: 03:04 PM
+    - paragraph: Testing InstaWork workflow persistence!
+    - paragraph: 03:04 PM
+    - paragraph: Testing InstaWork workflow persistence!
+    - paragraph: 03:04 PM
+    - paragraph: A
+    - paragraph: It seems like you're testing the persistence of the "InstaWork Shift Filling Workflow." If you need to view the current workflow structure or make any changes to test its persistence, please let me know how I can assist you!
+    - paragraph: 03:04 PM
+    - paragraph: If you would like to test the persistence of the "InstaWork Shift Filling Workflow," we can verify the current structure, make changes, and then check if those changes persist. Let me know what specific actions you'd like to perform, such as viewing the current workflow, adding or deleting goals or tasks, or testing data flow.
+    - paragraph: 03:04 PM
+    - paragraph: It seems like you're testing the persistence of the "InstaWork Shift Filling Workflow." If you need to view the current workflow structure or make any changes, please let me know how I can assist you further!
+    - paragraph: 03:04 PM
+    - paragraph: Testing InstaWork workflow persistence!
+    - paragraph: 03:05 PM
+    - paragraph: A
+    - paragraph: If you're looking to test the persistence of the "InstaWork Shift Filling Workflow," we can start by viewing the current workflow structure. This will allow us to see all the goals and tasks currently in place. Would you like me to display the current workflow for you?
+    - paragraph: 03:05 PM
+    - paragraph: If you want to test switching between different workflow templates without using a modal, we can start by viewing the current workflow and then create or switch to a new workflow template. Let me know if you would like to proceed with viewing the current workflow or creating a new one!
+    - paragraph: 03:59 PM
+    - paragraph: Testing InstaWork workflow persistence!
+    - paragraph: 04:01 PM
+    - paragraph: A
+    - paragraph: To test the persistence of the "InstaWork Shift Filling Workflow," we can perform actions such as viewing the current workflow structure, making changes, and then verifying if those changes persist. Would you like me to display the current workflow or perform any specific actions to test its persistence?
+    - paragraph: 04:01 PM
+    - paragraph: hey
+    - paragraph: 04:28 PM
+    - paragraph: A
+    - paragraph: Hello! How can I assist you with the "InstaWork Shift Filling Workflow" today? If you have any questions or need help with specific tasks or goals, feel free to let me know!
+    - paragraph: 04:28 PM
+    - paragraph: Remove the 7th goal
+    - paragraph: 07:49 PM
+    - paragraph: A
+    - paragraph: The 7th goal, "Print Data Flow," has been successfully removed from the workflow. If you need further assistance or want to make additional changes, feel free to let me know!
+    - paragraph: 07:49 PM
+    - paragraph: It seems there was an issue with deleting the goal. Please confirm by typing "DELETE GOAL" to proceed with the deletion of the "Test Data Flow" goal.
+    - paragraph: 07:58 PM
+    - paragraph: 'I found goal 6, "Test Data Flow" (ID: goal-1752435427676-2ipbksxna). To confirm deletion of this goal and all its contents, please type exactly: DELETE GOAL'
+    - paragraph: 08:00 PM
+    - paragraph: DELETE GOAL
+    - paragraph: 08:03 PM
+    - paragraph: A
+    - paragraph: 'I found goal 7, "Print Data Flow" (ID: goal-1752436031880-qgvorurup). To confirm deletion of this goal and all its contents, please type exactly: DELETE GOAL'
+    - paragraph: 08:06 PM
+    - paragraph: 'I found goal 6, "Test Data Flow" (ID: goal-1752435427676-2ipbksxna). To confirm deletion of this goal and all its contents, please type exactly: DELETE GOAL'
+    - paragraph: 08:10 PM
+    - paragraph: The goal "Test Data Flow" has been successfully deleted from the workflow. If you need further assistance or want to make additional changes, feel free to let me know!
+    - paragraph: 08:11 PM
+    - paragraph: 'I''ve added several tasks to the "Print Workflow" goal to ensure it is comprehensive and effective:'
+    - list:
+        - listitem:
+            - strong: Prepare the workflow document for printing
+            - text: by formatting it according to the company's documentation standards. (Assigned to a Document Specialist)
+        - listitem:
+            - strong: Send the formatted workflow document to the main office printer.
+            - text: (Managed by the Printer Management System)
+        - listitem:
+            - strong: Verify the printed document for accuracy and completeness.
+            - text: (Assigned to Quality Assurance)
+        - listitem:
+            - strong: Distribute the printed workflow document to the relevant stakeholders for review.
+            - text: (Assigned to an Office Assistant)
+    - paragraph: If you need further modifications or have any other requests, feel free to let me know!
+    - paragraph: 08:17 PM
+    - paragraph: Add some policies as well
+    - paragraph: 08:17 PM
+    - paragraph: A
+    - paragraph: 'I''ve added several policies to the "Print Workflow" goal to ensure compliance and efficiency:'
+    - list:
+        - listitem:
+            - strong: Ensure that the document is printed on recycled paper
+            - text: to adhere to environmental policies. (Requires approval)
+        - listitem:
+            - strong: Limit the number of copies printed
+            - text: to reduce waste and adhere to cost-saving measures. (Warning issued if limit exceeds 10 copies)
+        - listitem:
+            - strong: Verify that all stakeholders have access to the printed document
+            - text: for review purposes. (Requires approval)
+    - paragraph: If you need further assistance or additional modifications, feel free to let me know!
+    - paragraph: 08:17 PM
+    - paragraph: 'It seems I mistakenly added constraints instead of policies. Let me correct that by adding appropriate policies to the "Print Workflow" goal.I apologize for the confusion earlier. It seems I added constraints instead of policies. Let me clarify the policies that can be added to the "Print Workflow" goal:'
+    - list:
+        - listitem:
+            - strong: Environmental Compliance Policy
+            - text: ": Ensure that all printed documents use recycled paper to support sustainability efforts."
+        - listitem:
+            - strong: Cost Management Policy
+            - text: ": Limit the number of printed copies to a maximum of 10 to control costs and reduce waste."
+        - listitem:
+            - strong: Access Control Policy
+            - text: ": Ensure that only authorized personnel have access to the printed documents to maintain confidentiality and security."
+    - paragraph: If you would like to proceed with these policies or have any specific policies in mind, please let me know!
+    - paragraph: 08:18 PM
+    - paragraph: Currently, the workflow tools available do not support adding forms directly. However, I can help you design tasks or constraints that involve collecting information, which can be similar to using forms. If you have specific information you need to gather or process, please let me know, and I can assist in setting up tasks or constraints to achieve that!
+    - paragraph: 08:18 PM
+    - paragraph: I apologize for the oversight. It seems I added constraints again instead of policies. Unfortunately, the current tools do not explicitly support adding policies as a separate entity. However, we can conceptualize policies as guidelines or rules that influence how tasks and constraints are implemented.
+    - paragraph: 'Here are some conceptual policies for the "Print Workflow" goal:'
+    - list:
+        - listitem:
+            - strong: Review Policy
+            - text: ": All printed documents must be reviewed by the document owner before distribution to ensure accuracy and compliance with company standards."
+        - listitem:
+            - strong: Printing Schedule Policy
+            - text: ": Printing should be scheduled during off-peak hours to optimize printer usage and reduce wait times."
+        - listitem:
+            - strong: Archiving Policy
+            - text: ": Ensure that digital copies of the workflow are archived in the company’s document management system for future reference."
+    - paragraph: If you have specific policies in mind or need further assistance, please let me know!
+    - paragraph: 08:18 PM
+    - paragraph: It seems that goal 5, "Print Workflow," currently has 9 constraints. Unfortunately, the tools available do not support directly removing constraints. However, if you need further assistance or have other requests, please let me know!
+    - paragraph: 08:19 PM
+    - paragraph: Can you edit the constraints?
+    - paragraph: 08:19 PM
+    - paragraph: A
+    - paragraph: Currently, the tools available do not support directly editing constraints. However, if you have specific changes in mind, we can discuss how to implement them through tasks or other workflow components. Let me know what you have in mind, and I'll do my best to assist you!
+    - paragraph: 08:19 PM
+    - paragraph: Can you remove the tasks?
+    - paragraph: 08:19 PM
+    - paragraph: A
+    - paragraph: Currently, the tools available do not support directly removing tasks. However, if you have specific tasks you want to modify or replace, we can discuss how to adjust the workflow to meet your needs. Let me know what changes you have in mind, and I'll be happy to assist!
+    - paragraph: 08:19 PM
+    - paragraph: 'Create a new workflow called "Test Workflow" with a goal "Test Goal" that has 3 tasks: 1) Validate input data, 2) Process data, and 3) Send notification'
+    - paragraph: 08:51 PM
+    - paragraph: 'Create a new workflow called "Test Workflow" with a goal "Test Goal" that has 3 tasks: 1) Validate input data, 2) Process data, and 3) Send notification'
+    - paragraph: 08:51 PM
+    - paragraph: 'Create a new workflow called "Test Workflow" with a goal "Test Goal" that has 3 tasks: 1) Validate input data, 2) Process data, and 3) Send notification'
+    - paragraph: 08:51 PM
+    - paragraph: 'Create a new workflow called "Test Workflow" with a goal "Test Goal" that has 3 tasks: 1) Validate input data, 2) Process data, and 3) Send notification'
+    - paragraph: 08:51 PM
+    - paragraph: 'Create a new workflow called "Test Workflow" with a goal "Test Goal" that has 3 tasks: 1) Validate input data, 2) Process data, and 3) Send notification'
+    - paragraph: 08:51 PM
+    - paragraph: 'Create a new workflow called "Test Workflow" with a goal "Test Goal" that has 3 tasks: 1) Validate input data, 2) Process data, and 3) Send notification'
+    - paragraph: 08:51 PM
+    - paragraph: 'Create a new workflow called "Test Workflow" with a goal "Test Goal" that has 3 tasks: 1) Validate input data, 2) Process data, and 3) Send notification'
+    - paragraph: 08:51 PM
+    - paragraph: 'Create a new workflow called "Test Workflow" with a goal "Test Goal" that has 3 tasks: 1) Validate input data, 2) Process data, and 3) Send notification'
+    - paragraph: 08:51 PM
+    - paragraph: 'Create a new workflow called "Test Workflow" with a goal "Test Goal" that has 3 tasks: 1) Validate input data, 2) Process data, and 3) Send notification'
+    - paragraph: 08:51 PM
+    - textbox "Send a message..."
+    - button "Send message" [disabled]:
+        - img
+    - heading "InstaWork Shift Filling Workflow" [level=2]
+    - paragraph: Automatically optimize shift group fill rates through intelligent categorization, targeted interventions, and continuous improvement
+    - text: V2 Workflow • 2.0 🔄
+    - 'heading "Goal 1: Categorize Shift Group" [level=3]'
+    - paragraph: Analyze incoming shift group to determine appropriate intervention level and collect relevant information for downstream processing
+    - text: Progress 30% ⏱️ 30m timeout 3 Constraints 4 Policies 3 Tasks 1 Forms
+    - button "🚨 Constraints (3) ▶":
+        - text: 🚨
+        - heading "Constraints (3)" [level=4]
+        - text: ▶
+    - button "⚡ Policies (4) ▶":
+        - text: ⚡
+        - heading "Policies (4)" [level=4]
+        - text: ▶
+    - button "📋 Tasks (3) ▶":
+        - text: 📋
+        - heading "Tasks (3)" [level=4]
+        - text: ▶
+    - button "📝 Forms (1) ▶":
+        - text: 📝
+        - heading "Forms (1)" [level=4]
+        - text: ▶
+    - text: ⏳
+    - 'heading "Goal 2: Execute Fill Actions" [level=3]'
+    - paragraph: Deploy targeted interventions to maximize probability of filling all shifts in the group
+    - text: 🔄 Continuous 5 Constraints 5 Policies 6 Tasks 3 Forms
+    - button "🚨 Constraints (5) ▶":
+        - text: 🚨
+        - heading "Constraints (5)" [level=4]
+        - text: ▶
+    - button "⚡ Policies (5) ▶":
+        - text: ⚡
+        - heading "Policies (5)" [level=4]
+        - text: ▶
+    - button "📋 Tasks (6) ▶":
+        - text: 📋
+        - heading "Tasks (6)" [level=4]
+        - text: ▶
+    - button "📝 Forms (3) ▶":
+        - text: 📝
+        - heading "Forms (3)" [level=4]
+        - text: ▶
+    - text: ⏳
+    - 'heading "Goal 3: Analyze & Improve" [level=3]'
+    - paragraph: Post-shift analysis to identify patterns, anomalies, and improvement opportunities across all workflow components
+    - text: ⏱️ 120m timeout 4 Constraints 4 Policies 4 Tasks 3 Forms
+    - button "🚨 Constraints (4) ▶":
+        - text: 🚨
+        - heading "Constraints (4)" [level=4]
+        - text: ▶
+    - button "⚡ Policies (4) ▶":
+        - text: ⚡
+        - heading "Policies (4)" [level=4]
+        - text: ▶
+    - button "📋 Tasks (4) ▶":
+        - text: 📋
+        - heading "Tasks (4)" [level=4]
+        - text: ▶
+    - button "📝 Forms (3) ▶":
+        - text: 📝
+        - heading "Forms (3)" [level=4]
+        - text: ▶
+    - text: ⏳
+    - 'heading "Goal 4: Test Goal" [level=3]'
+    - paragraph: A goal to test the addition and deletion of tasks and goals.
+    - text: 0 Constraints 0 Policies 1 Tasks 0 Forms
+    - button "📋 Tasks (1) ▶":
+        - text: 📋
+        - heading "Tasks (1)" [level=4]
+        - text: ▶
+    - text: ⏳
+    - 'heading "Goal 5: Print Workflow" [level=3]'
+    - paragraph: Print the entire workflow on the printer located in the main office for review and documentation purposes.
+    - text: 9 Constraints 0 Policies 4 Tasks 0 Forms
+    - button "🚨 Constraints (9) ▶":
+        - text: 🚨
+        - heading "Constraints (9)" [level=4]
+        - text: ▶
+    - button "📋 Tasks (4) ▶":
+        - text: 📋
+        - heading "Tasks (4)" [level=4]
+        - text: ▶
+    - text: ⏳
+    - 'heading "Goal 6: Print Data Flow" [level=3]'
+    - paragraph: Print the data flow of the workflow for analysis and review purposes.
+    - text: 0 Constraints 0 Policies 0 Tasks 0 Forms
+    - heading "InstaWork Shift Filling Workflow" [level=3]
+    - paragraph: Automatically optimize shift group fill rates through intelligent categorization, targeted interventions, and continuous improvement
+    - heading "Goals" [level=4]
+    - paragraph: "6"
+    - heading "Version" [level=4]
+    - paragraph: "2.0"
+    - img
+    - heading "Version History" [level=3]
+    - paragraph: No version history available
+    - paragraph: 💡 Click on any goal, constraint, policy, task, or form in the workflow to see detailed information.
+```
