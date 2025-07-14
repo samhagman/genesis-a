@@ -568,6 +568,28 @@ export class Chat extends AIChatAgent<Env> {
       timestamp: new Date().toISOString(),
     });
 
+    // Add detailed logging for deleteTask tool specifically
+    console.log("🔍 [Chat DO] Inspecting deleteTask tool:", {
+      hasDeleteTask: !!tools.deleteTask,
+      deleteTaskType: typeof tools.deleteTask,
+      deleteTaskDescription: tools.deleteTask?.description,
+      deleteTaskParameters: tools.deleteTask?.parameters,
+      deleteTaskHasExecute: !!tools.deleteTask?.execute,
+      parametersSchema: JSON.stringify(
+        tools.deleteTask?.parameters?.shape || "no shape"
+      ),
+    });
+
+    // Log all tool names and their execute status
+    console.log(
+      "📋 [Chat DO] All tools overview:",
+      Object.entries(tools).map(([name, tool]) => ({
+        name,
+        hasExecute: !!tool.execute,
+        description: tool.description?.substring(0, 50) + "...",
+      }))
+    );
+
     return tools;
   }
 
@@ -714,6 +736,15 @@ export class Chat extends AIChatAgent<Env> {
         workflowName: workflow.name,
         goalsCount: workflow.goals?.length || 0,
       });
+
+      // Broadcast workflow update to all connected WebSocket clients
+      for (const ws of this.ctx.getWebSockets()) {
+        try {
+          ws.send(JSON.stringify({ type: "workflow_updated" }));
+        } catch (error) {
+          console.error("❌ [Chat DO] Failed to send WebSocket update:", error);
+        }
+      }
     } catch (error) {
       console.error("❌ [Chat DO] Failed to save workflow:", error);
       throw error;
@@ -880,6 +911,89 @@ When a user asks to delete a goal (e.g., "delete goal 3", "remove the third goal
 IMPORTANT: After the user types "DELETE GOAL", you MUST call the deleteGoal tool. Do not just acknowledge their message.
 NEVER provide the confirmation phrase yourself. The user must type it.
 
+CRITICAL INSTRUCTIONS FOR TASK OPERATIONS:
+
+Task Deletion:
+When a user asks to delete a task (e.g., "delete task 3", "remove the email validation task"):
+1. First use viewCurrentWorkflow to display all goals and their structure
+2. Identify which goal contains the task they want to delete
+3. List all tasks in that goal with their positions AND their actual IDs:
+   Example: "Goal 'Categorize Shift Group' contains:
+   - Task 1: Analyze incoming shift group (ID: task_analyze_shift)
+   - Task 2: Determine appropriate intervention level (ID: task_categorize)
+   - Task 3: Collect relevant information for downstream processing (ID: task_human_review)"
+4. Identify the target task:
+   - If they say "task 2" or "second task", find the task at position 2
+   - If they name a task, match by description
+   - CRITICAL: Use the ACTUAL task ID from the workflow (like "task_categorize"), NOT generic IDs like "task-1" or "task-2"
+5. Immediately call the deleteTask tool with the ACTUAL taskId from the workflow
+
+ABSOLUTELY CRITICAL: When calling deleteTask tool, you MUST use the actual task ID from the workflow data structure, NOT position-based IDs like "task-1", "task-2", etc. 
+
+Examples of CORRECT task IDs to use:
+- "task_analyze_shift" 
+- "task_categorize"
+- "task_human_review"
+- "task-1752435427676-abc123"
+
+Examples of INCORRECT task IDs to NEVER use:
+- "task-1" (generic position-based ID)
+- "task-2" (generic position-based ID)
+- "task-3" (generic position-based ID)
+
+6. The system will show the user approval buttons (Approve/Reject)
+7. After the user clicks:
+   - If approved: Confirm the deletion was successful
+   - If rejected: Acknowledge the cancellation
+
+IMPORTANT: Just call the deleteTask tool directly. Do NOT ask for confirmation phrases or wait for user confirmation before calling the tool.
+
+Task Editing:
+When a user asks to edit/modify/change a task:
+1. Follow steps 1-4 from deletion to identify the task
+2. Ask what specific changes they want to make if not clear
+3. Call the editTask tool with:
+   - taskId: the identified task ID
+   - updates: object containing only the fields they want to change
+4. NO confirmation needed - this is non-destructive
+
+CRITICAL INSTRUCTIONS FOR CONSTRAINT OPERATIONS:
+
+Constraint Deletion:
+When a user asks to delete a constraint (e.g., "delete constraint 2", "remove the time limit constraint"):
+1. First use viewCurrentWorkflow to display all goals and their structure
+2. Identify which goal contains the constraint they want to delete
+3. List all constraints in that goal with their positions AND their actual IDs:
+   Example: "Goal 'Complete Employee Setup' contains:
+   - Constraint 1: Complete all tasks within 2 hours (ID: constraint_time_limit_setup)
+   - Constraint 2: Verify all required fields are filled (ID: constraint_validation_fields)
+   - Constraint 3: Manager approval required for exceptions (ID: constraint_approval_required)"
+4. Identify the target constraint:
+   - If they say "constraint 2" or "second constraint", find the constraint at position 2
+   - If they name a constraint, match by description
+   - CRITICAL: Use the ACTUAL constraint ID from the workflow (like "constraint_validation_fields"), NOT generic IDs like "constraint-1" or "constraint-2"
+5. Immediately call the deleteConstraint tool with the ACTUAL constraintId from the workflow
+
+ABSOLUTELY CRITICAL: When calling deleteConstraint tool, you MUST use the actual constraint ID from the workflow data structure, NOT position-based IDs like "constraint-1", "constraint-2", etc. 
+
+Examples of CORRECT constraint IDs to use:
+- "constraint_time_limit_setup" 
+- "constraint_validation_fields"
+- "constraint_approval_required"
+- "constraint-1752435427676-abc123"
+
+Examples of INCORRECT constraint IDs to NEVER use:
+- "constraint-1" (generic position-based ID)
+- "constraint-2" (generic position-based ID)
+- "constraint-3" (generic position-based ID)
+
+6. The system will show the user approval buttons (Approve/Reject)
+7. After the user clicks:
+   - If approved: Confirm the deletion was successful
+   - If rejected: Acknowledge the cancellation
+
+IMPORTANT: Just call the deleteConstraint tool directly. Do NOT ask for confirmation phrases or wait for user confirmation before calling the tool.
+
 Always be helpful and provide clear explanations about the workflow components.`;
 
     console.log("✅ [Chat DO] Generated system prompt", {
@@ -1028,6 +1142,57 @@ Always be helpful and provide clear explanations about the workflow components.`
             promptPreview: `${systemPrompt.substring(0, 100)}...`,
           });
 
+          // Log relevant part of system prompt for delete operations
+          const deleteInstructionsStart =
+            systemPrompt.indexOf("Task Deletion:");
+          if (deleteInstructionsStart > -1) {
+            const deleteInstructionsEnd = systemPrompt.indexOf(
+              "Task Editing:",
+              deleteInstructionsStart
+            );
+            const deleteInstructions = systemPrompt.substring(
+              deleteInstructionsStart,
+              deleteInstructionsEnd > -1
+                ? deleteInstructionsEnd
+                : deleteInstructionsStart + 500
+            );
+            console.log(
+              "📜 [Chat DO] Delete task instructions from system prompt:",
+              {
+                found: true,
+                instructions: deleteInstructions,
+              }
+            );
+          } else {
+            console.log(
+              "📜 [Chat DO] Delete task instructions from system prompt:",
+              {
+                found: false,
+                promptContainsDeleteTask: systemPrompt.includes("deleteTask"),
+                promptContainsDELETETASK: systemPrompt.includes("DELETE TASK"),
+              }
+            );
+          }
+
+          // Log the actual messages being sent to AI for DELETE requests
+          if (processedMessages.length > 0) {
+            const lastMessage = processedMessages[processedMessages.length - 1];
+            if (
+              lastMessage.content &&
+              typeof lastMessage.content === "string" &&
+              lastMessage.content.toLowerCase().includes("delete")
+            ) {
+              console.log("🗑️ [Chat DO] DELETE REQUEST DETECTED:", {
+                userMessage: lastMessage.content,
+                messageRole: lastMessage.role,
+                systemPromptIncludesDeleteInstructions: systemPrompt.includes(
+                  "CRITICAL INSTRUCTIONS FOR TASK OPERATIONS"
+                ),
+                deleteTaskToolAvailable: !!allTools.deleteTask,
+              });
+            }
+          }
+
           // Stream the AI response using the model
           console.log("🤖 [Chat DO] Starting streamText with parameters:", {
             hasModel: !!this.getModel(),
@@ -1050,6 +1215,19 @@ Always be helpful and provide clear explanations about the workflow components.`
                 toolCallCount: args.toolCalls?.length || 0,
                 responseLength: args.text?.length || 0,
               });
+
+              // Log detailed tool call information
+              if (args.toolCalls && args.toolCalls.length > 0) {
+                console.log(
+                  "🔧 [Chat DO] Tool calls from AI:",
+                  args.toolCalls.map((tc) => ({
+                    toolName: tc.toolName,
+                    toolCallId: tc.toolCallId,
+                    args: tc.args,
+                    argsString: JSON.stringify(tc.args),
+                  }))
+                );
+              }
 
               // Store the assistant message
               if (this.currentTemplateId && args.text) {
