@@ -12,12 +12,14 @@ Implement persistent chat history where each workflow template maintains its own
 
 **Problem**: Chat messages don't persist when switching workflow templates. Users lose conversation context when switching between templates.
 
-**Current Behavior**: 
+**Current Behavior**:
+
 - Template switching clears all chat messages
 - Each template switch starts fresh conversation
 - No message storage beyond session
 
 **Desired Behavior**:
+
 - Each template maintains isolated, persistent message history
 - Template switching loads that template's previous messages
 - Clear indicators when continuing vs starting new conversations
@@ -36,6 +38,7 @@ Implement persistent chat history where each workflow template maintains its own
 ```
 
 **Key Design Decisions**:
+
 - Use agents library's `getInitialMessages` pattern
 - Store messages in DO storage with template-specific keys
 - Minimal code changes (SLC principle)
@@ -52,6 +55,7 @@ Implement persistent chat history where each workflow template maintains its own
 **Tasks**:
 
 1. **Research Message Interface** (15 min)
+
    ```typescript
    // Examine: /node_modules/agents/dist/ai-react.d.ts
    // Document exact Message format:
@@ -66,21 +70,25 @@ Implement persistent chat history where each workflow template maintains its own
    ```
 
 2. **Add Storage Methods to Chat DO** (30 min)
+
    ```typescript
    export class Chat extends AIChatAgent<Env> {
      // Add these methods to Chat class
-     
+
      async storeMessage(templateId: string, message: Message): Promise<void> {
        const key = `msg:${templateId}:${message.id}`;
        await this.doState.storage.put(key, JSON.stringify(message));
-       console.log(`💾 [Chat DO] Stored message for template ${templateId}:`, message.id);
+       console.log(
+         `💾 [Chat DO] Stored message for template ${templateId}:`,
+         message.id
+       );
      }
-     
+
      async getMessages(templateId: string): Promise<Message[]> {
        const prefix = `msg:${templateId}:`;
        const keys = await this.doState.storage.list({ prefix });
        const messages: Message[] = [];
-       
+
        for (const [key, value] of keys) {
          try {
            const message = JSON.parse(value as string);
@@ -89,10 +97,12 @@ Implement persistent chat history where each workflow template maintains its own
            console.error(`❌ [Chat DO] Failed to parse message ${key}:`, error);
          }
        }
-       
+
        // Sort by timestamp or message creation order
-       return messages.sort((a, b) => 
-         new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime()
+       return messages.sort(
+         (a, b) =>
+           new Date(a.timestamp || 0).getTime() -
+           new Date(b.timestamp || 0).getTime()
        );
      }
    }
@@ -104,6 +114,7 @@ Implement persistent chat history where each workflow template maintains its own
    - Verify messages are stored and retrieved correctly
 
 **Success Criteria**:
+
 - ✅ `storeMessage()` saves messages to DO storage
 - ✅ `getMessages()` retrieves messages for specific template
 - ✅ Message format preserved exactly
@@ -118,11 +129,12 @@ Implement persistent chat history where each workflow template maintains its own
 **Tasks**:
 
 1. **Add Route Handling** (20 min)
+
    ```typescript
    // In Chat class fetch() method, add route handling:
    async fetch(request: Request): Promise<Response> {
      const url = new URL(request.url);
-     
+
      // Handle message retrieval endpoint
      if (url.pathname.endsWith('/messages') && request.method === 'GET') {
        const templateId = url.searchParams.get('templateId');
@@ -132,7 +144,7 @@ Implement persistent chat history where each workflow template maintains its own
            headers: { 'Content-Type': 'application/json' }
          });
        }
-       
+
        try {
          const messages = await this.getMessages(templateId);
          return new Response(JSON.stringify({ messages }), {
@@ -145,7 +157,7 @@ Implement persistent chat history where each workflow template maintains its own
          });
        }
      }
-     
+
      // Continue with existing fetch logic...
      return super.fetch(request);
    }
@@ -157,6 +169,7 @@ Implement persistent chat history where each workflow template maintains its own
    - Test error handling for missing templateId
 
 **Success Criteria**:
+
 - ✅ GET endpoint returns messages for valid templateId
 - ✅ Proper JSON format: `{ messages: Message[] }`
 - ✅ Error handling for invalid requests
@@ -171,29 +184,42 @@ Implement persistent chat history where each workflow template maintains its own
 **Tasks**:
 
 1. **Add getInitialMessages Function** (25 min)
+
    ```typescript
    // In ChatPanel component, add getInitialMessages to useAgentChat:
-   
-   const getInitialMessages = useCallback(async (options: { agent: string, name: string, url: string }) => {
-     const templateId = options.name;
-     if (!templateId) return [];
-     
-     try {
-       console.log(`📥 [ChatPanel] Loading messages for template: ${templateId}`);
-       const response = await fetch(`${getApiUrl(`/agents/chat/${templateId}/messages`)}?templateId=${templateId}`);
-       const data = await response.json();
-       
-       if (data.messages) {
-         console.log(`✅ [ChatPanel] Loaded ${data.messages.length} messages for ${templateId}`);
-         return data.messages;
+
+   const getInitialMessages = useCallback(
+     async (options: { agent: string; name: string; url: string }) => {
+       const templateId = options.name;
+       if (!templateId) return [];
+
+       try {
+         console.log(
+           `📥 [ChatPanel] Loading messages for template: ${templateId}`
+         );
+         const response = await fetch(
+           `${getApiUrl(`/agents/chat/${templateId}/messages`)}?templateId=${templateId}`
+         );
+         const data = await response.json();
+
+         if (data.messages) {
+           console.log(
+             `✅ [ChatPanel] Loaded ${data.messages.length} messages for ${templateId}`
+           );
+           return data.messages;
+         }
+         return [];
+       } catch (error) {
+         console.error(
+           `❌ [ChatPanel] Failed to load messages for ${templateId}:`,
+           error
+         );
+         return [];
        }
-       return [];
-     } catch (error) {
-       console.error(`❌ [ChatPanel] Failed to load messages for ${templateId}:`, error);
-       return [];
-     }
-   }, []);
-   
+     },
+     []
+   );
+
    const {
      messages: agentMessages,
      input: agentInput,
@@ -216,6 +242,7 @@ Implement persistent chat history where each workflow template maintains its own
    - Check console logs for loading confirmation
 
 **Success Criteria**:
+
 - ✅ Template switching triggers message loading
 - ✅ Loaded messages display in chat UI
 - ✅ Console logs confirm loading process
@@ -230,11 +257,12 @@ Implement persistent chat history where each workflow template maintains its own
 **Tasks**:
 
 1. **Hook into Message Flow** (20 min)
+
    ```typescript
    // In Chat class, override message handling to store messages:
-   
+
    // Find the existing streamText or chat completion method and add storage:
-   
+
    async handleChatMessage(message: string, templateId: string): Promise<Response> {
      // Store user message
      const userMessage: Message = {
@@ -244,7 +272,7 @@ Implement persistent chat history where each workflow template maintains its own
        timestamp: new Date().toISOString(),
      };
      await this.storeMessage(templateId, userMessage);
-     
+
      // Get AI response (existing logic)
      const response = await streamText({
        model: this.model,
@@ -262,7 +290,7 @@ Implement persistent chat history where each workflow template maintains its own
          await this.storeMessage(templateId, assistantMessage);
        },
      });
-     
+
      return createDataStreamResponse(response.toDataStreamResponse());
    }
    ```
@@ -273,6 +301,7 @@ Implement persistent chat history where each workflow template maintains its own
    - Switch templates and verify messages persist
 
 **Success Criteria**:
+
 - ✅ User messages automatically stored
 - ✅ AI response messages automatically stored
 - ✅ Message ordering preserved
@@ -287,6 +316,7 @@ Implement persistent chat history where each workflow template maintains its own
 **Files to Modify**: `/src/components/chat/ChatPanel.tsx`
 
 **Implementation**:
+
 ```typescript
 // Add state for tracking if messages were loaded
 const [hasLoadedMessages, setHasLoadedMessages] = useState(false);
@@ -296,11 +326,11 @@ const [lastMessageDate, setLastMessageDate] = useState<string | null>(null);
 const getInitialMessages = useCallback(async (options: { agent: string, name: string, url: string }) => {
   const templateId = options.name;
   if (!templateId) return [];
-  
+
   try {
     const response = await fetch(`${getApiUrl(`/agents/chat/${templateId}/messages`)}?templateId=${templateId}`);
     const data = await response.json();
-    
+
     if (data.messages && data.messages.length > 0) {
       setHasLoadedMessages(true);
       // Get last message timestamp
@@ -337,47 +367,54 @@ const getInitialMessages = useCallback(async (options: { agent: string, name: st
 
 **Objective**: Template-specific clear with global option
 
-**Files to Modify**: 
-- `/src/components/chat/ChatPanel.tsx` 
+**Files to Modify**:
+
+- `/src/components/chat/ChatPanel.tsx`
 - `/src/server.ts` (add clear endpoint)
 
 **Implementation**:
 
 1. **Add Clear Template Endpoint** (server.ts):
+
 ```typescript
 // In Chat class fetch() method, add clear endpoint:
-if (url.pathname.endsWith('/clear') && request.method === 'POST') {
+if (url.pathname.endsWith("/clear") && request.method === "POST") {
   const body = await request.json();
   const { templateId, clearAll } = body;
-  
+
   try {
     if (clearAll) {
       // Clear all messages for all templates
-      const keys = await this.doState.storage.list({ prefix: 'msg:' });
-      await Promise.all([...keys.keys()].map(key => this.doState.storage.delete(key)));
+      const keys = await this.doState.storage.list({ prefix: "msg:" });
+      await Promise.all(
+        [...keys.keys()].map((key) => this.doState.storage.delete(key))
+      );
       console.log(`🧹 [Chat DO] Cleared all messages`);
     } else if (templateId) {
       // Clear messages for specific template
       const prefix = `msg:${templateId}:`;
       const keys = await this.doState.storage.list({ prefix });
-      await Promise.all([...keys.keys()].map(key => this.doState.storage.delete(key)));
+      await Promise.all(
+        [...keys.keys()].map((key) => this.doState.storage.delete(key))
+      );
       console.log(`🧹 [Chat DO] Cleared messages for template ${templateId}`);
     }
-    
+
     return new Response(JSON.stringify({ success: true }), {
-      headers: { 'Content-Type': 'application/json' }
+      headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error(`❌ [Chat DO] Failed to clear messages:`, error);
     return new Response(JSON.stringify({ success: false }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { "Content-Type": "application/json" },
     });
   }
 }
 ```
 
 2. **Update Clear Button UI** (ChatPanel.tsx):
+
 ```typescript
 // Replace existing clear button with dropdown
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/dropdown/DropdownMenu";
@@ -385,7 +422,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 // Add clear functions
 const clearTemplateHistory = async () => {
   if (!selectedTemplateId) return;
-  
+
   try {
     await fetch(getApiUrl(`/agents/chat/${selectedTemplateId}/clear`), {
       method: 'POST',
@@ -443,6 +480,7 @@ const clearAllHistory = async () => {
 **Tasks**:
 
 1. **Basic Functionality Testing**
+
    - Send messages in Template A
    - Switch to Template B, verify empty chat
    - Send messages in Template B
@@ -450,55 +488,63 @@ const clearAllHistory = async () => {
    - Verify conversation continuation banner appears
 
 2. **Clear History Testing**
+
    - Test template-specific clear
    - Test global clear all
    - Verify clear button dropdown works
 
 3. **Edge Case Testing**
+
    - Template switching without messages
    - Network failure scenarios
    - Invalid template IDs
    - Browser refresh persistence
 
 4. **Playwright Automation Test**
+
    ```typescript
    // Create test file: tests/chat-persistence.test.ts
-   import { test, expect } from '@playwright/test';
-   
-   test('persistent chat history across templates', async ({ page }) => {
-     await page.goto('http://localhost:5175/');
-     
+   import { test, expect } from "@playwright/test";
+
+   test("persistent chat history across templates", async ({ page }) => {
+     await page.goto("http://localhost:5175/");
+
      // Send message in first template
-     await page.fill('[data-testid="chat-input"]', 'Hello in template A');
+     await page.fill('[data-testid="chat-input"]', "Hello in template A");
      await page.click('[data-testid="send-button"]');
      await page.waitForTimeout(3000);
-     
+
      // Switch to second template
      await page.click('button:has-text("📁 Template:")');
-     await page.click('text=Employee Onboarding Process V2');
-     
+     await page.click("text=Employee Onboarding Process V2");
+
      // Verify chat is empty
      const messages = await page.locator('[data-testid="chat-messages"]');
-     await expect(messages).toContainText('Welcome to AI Chat');
-     
+     await expect(messages).toContainText("Welcome to AI Chat");
+
      // Send message in second template
-     await page.fill('[data-testid="chat-input"]', 'Hello in template B');
+     await page.fill('[data-testid="chat-input"]', "Hello in template B");
      await page.click('[data-testid="send-button"]');
      await page.waitForTimeout(3000);
-     
+
      // Switch back to first template
      await page.click('button:has-text("📁 Template:")');
-     await page.click('text=InstaWork Shift Filling');
-     
+     await page.click("text=InstaWork Shift Filling");
+
      // Verify original message persists and continuation banner appears
-     await expect(page.locator('[data-testid="chat-messages"]')).toContainText('Hello in template A');
-     await expect(page.locator('text=Continuing previous conversation')).toBeVisible();
-     
-     await page.screenshot({ path: 'tests/screenshots/chat-persistence.png' });
+     await expect(page.locator('[data-testid="chat-messages"]')).toContainText(
+       "Hello in template A"
+     );
+     await expect(
+       page.locator("text=Continuing previous conversation")
+     ).toBeVisible();
+
+     await page.screenshot({ path: "tests/screenshots/chat-persistence.png" });
    });
    ```
 
 **Success Criteria**:
+
 - ✅ Messages persist across template switches
 - ✅ Each template maintains isolated history
 - ✅ Continuation banner shows for existing conversations
@@ -510,6 +556,7 @@ const clearAllHistory = async () => {
 ## Technical Specifications
 
 ### Message Storage Format
+
 ```typescript
 interface StoredMessage {
   id: string;
@@ -527,12 +574,14 @@ interface StoredMessage {
 ```
 
 ### API Endpoints
+
 ```
 GET  /agents/chat/${templateId}/messages?templateId=${id}
 POST /agents/chat/${templateId}/clear
 ```
 
 ### Error Handling Strategy
+
 - **Storage failures**: Log error, continue with empty history
 - **Network failures**: Return empty array, allow fresh conversation
 - **Invalid template IDs**: Return empty array
@@ -541,12 +590,14 @@ POST /agents/chat/${templateId}/clear
 ## Risk Mitigation
 
 **Low Risk Factors**:
+
 - Incremental implementation with rollback capability
 - Each phase independently testable
 - No breaking changes to existing API
 - Template isolation prevents cross-contamination
 
 **Monitoring Points**:
+
 - Console logs for all storage operations
 - Error rates for message loading
 - Performance impact of message retrieval
@@ -555,6 +606,7 @@ POST /agents/chat/${templateId}/clear
 ## Success Metrics
 
 **Functional Requirements**:
+
 - ✅ Messages persist when switching between templates
 - ✅ Each template maintains isolated chat history
 - ✅ New messages automatically stored to DO storage
@@ -562,11 +614,13 @@ POST /agents/chat/${templateId}/clear
 - ✅ No existing functionality broken
 
 **UX Requirements**:
+
 - ✅ Clear indication when continuing previous conversations
 - ✅ Template-specific clear history options
 - ✅ Intuitive user experience without confusion
 
 **Technical Requirements**:
+
 - ✅ Follows SLC principles (Simple, Lovable, Complete)
 - ✅ Uses Cloudflare DO storage best practices
 - ✅ Leverages agents library patterns properly
@@ -579,12 +633,14 @@ POST /agents/chat/${templateId}/clear
 
 **Rollback Strategy**: Each phase can be independently reverted without affecting others
 
-**Performance Considerations**: 
+**Performance Considerations**:
+
 - Message loading only on template switch (not every render)
 - Storage operations are async and non-blocking
 - Error handling prevents failures from breaking chat functionality
 
 **Future Enhancements** (out of scope):
+
 - Message pagination for large histories
 - Message search functionality
 - Export/import chat histories
