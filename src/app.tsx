@@ -66,22 +66,31 @@ export default function App() {
     async function initializeApp() {
       try {
         setWorkflowLoading(true);
-        
+
         // 1. Load available templates first
         await loadAvailableTemplates();
-        
+
         // 2. Get the final selectedTemplateId after templates are loaded
-        const { selectedTemplateId: finalTemplateId, availableTemplates } = useWorkflowStore.getState();
-        
+        const { selectedTemplateId: finalTemplateId, availableTemplates } =
+          useWorkflowStore.getState();
+
         // 3. Validate that the selected template exists in available templates
-        if (!finalTemplateId || !availableTemplates.find(t => t.id === finalTemplateId)) {
-          throw new Error(`Selected template "${finalTemplateId}" not found in available templates`);
+        if (
+          !finalTemplateId ||
+          !availableTemplates.find((t) => t.id === finalTemplateId)
+        ) {
+          throw new Error(
+            `Selected template "${finalTemplateId}" not found in available templates`
+          );
         }
-        
-        console.log(`[App] Loading initial workflow for template: ${finalTemplateId}`);
-        
+
+        console.log(
+          `[App] Loading initial workflow for template: ${finalTemplateId}`
+        );
+
         // 4. Load workflow based on actual selectedTemplateId
-        const { workflow: workflowData, source } = await loadWorkflowSafe(finalTemplateId);
+        const { workflow: workflowData, source } =
+          await loadWorkflowSafe(finalTemplateId);
         console.log(`[App] Initial workflow loaded from ${source}:`, {
           templateId: finalTemplateId,
           name: workflowData.name,
@@ -111,7 +120,7 @@ export default function App() {
     }
 
     initializeApp();
-  }, []); // Empty dependency array - only run on mount
+  }, [loadAvailableTemplates]); // Empty dependency array - only run on mount
 
   // Template loading is now handled in the main initialization effect above
   // to ensure proper coordination between template selection and workflow loading
@@ -254,6 +263,7 @@ export default function App() {
         <ThreePanelLayout
           leftPanel={
             <ChatPanel
+              key={selectedTemplateId} // Force remount when template changes
               theme={theme}
               onThemeToggle={toggleTheme}
               workflow={workflow}
