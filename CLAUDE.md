@@ -17,6 +17,7 @@
 
 - Inspect logs with `pm2 logs [frontend|backend] --nostream --lines N`
 - Always confirm UX functionality with Playwright screenshots
+- When you read the logs, do not grep just look at all the logs so you know what is happening
 
 ## Scope of Development
 

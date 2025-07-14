@@ -90,10 +90,17 @@
       "mcp__zen__analyze",
       "Bash(prettier --write src/server.ts)",
       "mcp__zen__challenge",
-      "mcp__zen__precommit"
+      "mcp__zen__precommit",
+      "Bash(prettier:*)",
+      "Bash(wrangler dev:*)",
+      "mcp__zen__tracer",
+      "mcp__zen__chat",
+      "Bash(tsc)"
     ],
     "deny": []
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": ["zen"]
+  "enabledMcpjsonServers": [
+    "zen"
+  ]
 }
