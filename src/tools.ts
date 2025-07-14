@@ -9,7 +9,7 @@ import { getCurrentAgent } from "agents";
 import { unstable_scheduleSchema } from "agents/schedule";
 import { workflowEditingTools } from "./agents/workflowEditingTools";
 import type { Chat } from "./server";
-import type { WorkflowTemplateV2 } from "./types/workflow-v2";
+import type { WorkflowTemplateV2, Task } from "./types/workflow-v2";
 
 /**
  * Weather information tool that requires human confirmation
@@ -192,16 +192,36 @@ const viewCurrentWorkflow = tool({
 - Version: ${workflow.version}
 - Goals: ${workflow.goals.length}
 
-**Goal Summary:**
+**Detailed Goal and Task Information:**
 ${workflow.goals
   .map(
     (g, i) =>
-      `${i + 1}. **${g.name}**
+      `${i + 1}. **${g.name}** (ID: ${g.id})
      - Tasks: ${g.tasks?.length || 0}
      - Constraints: ${g.constraints?.length || 0}
-     - Policies: ${g.policies?.length || 0}`
+     - Policies: ${g.policies?.length || 0}
+     
+     **Tasks in this goal:**
+${
+  g.tasks
+    ?.map(
+      (task, taskIndex) =>
+        `     ${taskIndex + 1}. ${task.description} (ID: ${task.id})`
+    )
+    .join("\n") || "     No tasks"
+}
+     
+     **Constraints in this goal:**
+${
+  g.constraints
+    ?.map(
+      (constraint, constraintIndex) =>
+        `     ${constraintIndex + 1}. ${constraint.description} (ID: ${constraint.id})`
+    )
+    .join("\n") || "     No constraints"
+}`
   )
-  .join("\n")}
+  .join("\n\n")}
     `.trim();
 
     return summary;
@@ -427,14 +447,108 @@ const deleteGoal = tool({
  */
 const deleteTask = tool({
   description:
-    "Remove a specific task from the workflow. This requires confirmation as it may affect dependencies.",
+    "Remove a specific task from the workflow. This action requires your approval.",
   parameters: z.object({
     taskId: z.string().describe("ID of the task to delete"),
-    confirmationPhrase: z
-      .string()
-      .describe("User must type 'DELETE TASK' to confirm"),
   }),
-  // No execute function - requires human confirmation
+  // No execute function - requires human confirmation following deleteGoal pattern
+});
+
+/**
+ * Remove a specific constraint from the workflow (requires confirmation)
+ */
+const deleteConstraint = tool({
+  description:
+    "Remove a specific constraint from a goal in the workflow. This action requires your approval.",
+  parameters: z.object({
+    constraintId: z.string().describe("ID of the constraint to delete"),
+  }),
+  // No execute function - requires human confirmation following deleteGoal pattern
+});
+
+/**
+ * Edit an existing task within a goal. Supports partial updates.
+ */
+const editTask = tool({
+  description: "Edit an existing task within a goal. Supports partial updates.",
+  parameters: z.object({
+    taskId: z.string().describe("ID of the task to edit"),
+    updates: z
+      .object({
+        description: z.string().optional().describe("New task description"),
+        assigneeType: z.enum(["ai_agent", "human"]).optional(),
+        assigneeDetails: z
+          .string()
+          .optional()
+          .describe("Role or model details"),
+        timeoutMinutes: z.number().positive().optional(),
+        dependsOn: z.array(z.string()).optional(),
+      })
+      .describe("Fields to update (unspecified fields remain unchanged)"),
+  }),
+  execute: async ({ taskId, updates }) => {
+    const { agent } = getCurrentAgent<Chat>();
+    const workflow = agent!.getCurrentWorkflow();
+
+    if (!workflow) {
+      throw new Error("No workflow loaded.");
+    }
+
+    // Find task and its goal
+    let foundTask = null;
+    let foundGoal = null;
+
+    for (const goal of workflow.goals) {
+      const task = goal.tasks?.find((t) => t.id === taskId);
+      if (task) {
+        foundTask = task;
+        foundGoal = goal;
+        break;
+      }
+    }
+
+    if (!foundTask || !foundGoal) {
+      throw new Error(`Task "${taskId}" not found in any goal.`);
+    }
+
+    // Handle assignee updates specially
+    const processedUpdates: Partial<Task> = {};
+
+    // Copy over direct field mappings
+    if (updates.description !== undefined) {
+      processedUpdates.description = updates.description;
+    }
+
+    // Handle assignee field mapping
+    if (updates.assigneeType || updates.assigneeDetails) {
+      processedUpdates.assignee = {
+        type: updates.assigneeType || foundTask.assignee.type,
+        ...(updates.assigneeType === "ai_agent"
+          ? { model: updates.assigneeDetails || foundTask.assignee.model }
+          : { role: updates.assigneeDetails || foundTask.assignee.role }),
+      };
+    }
+
+    // Handle timeout field name mapping
+    if (updates.timeoutMinutes !== undefined) {
+      processedUpdates.timeout_minutes = updates.timeoutMinutes;
+    }
+
+    // Handle depends_on field name mapping
+    if (updates.dependsOn !== undefined) {
+      processedUpdates.depends_on = updates.dependsOn;
+    }
+
+    const updatedWorkflow = workflowEditingTools.updateTask(
+      workflow,
+      taskId,
+      processedUpdates
+    );
+
+    await agent!.saveCurrentWorkflow(updatedWorkflow);
+
+    return `Updated task "${foundTask.description}" in goal "${foundGoal.name}".`;
+  },
 });
 
 /**
@@ -457,6 +571,8 @@ export const tools = {
   addConstraint,
   deleteGoal,
   deleteTask,
+  deleteConstraint,
+  editTask,
 };
 
 /**
@@ -503,19 +619,7 @@ export const executions = {
     return `Deleted goal "${goal.name}" and all its tasks, constraints, policies, and forms.`;
   },
 
-  deleteTask: async ({
-    taskId,
-    confirmationPhrase,
-  }: {
-    taskId: string;
-    confirmationPhrase: string;
-  }) => {
-    if (confirmationPhrase !== "DELETE TASK") {
-      throw new Error(
-        "Invalid confirmation. Type 'DELETE TASK' to confirm this destructive action."
-      );
-    }
-
+  deleteTask: async ({ taskId }: { taskId: string }) => {
     const { agent } = getCurrentAgent<Chat>();
     const workflow = agent!.getCurrentWorkflow();
 
@@ -523,9 +627,60 @@ export const executions = {
       throw new Error("No workflow loaded.");
     }
 
+    // Find the task to get its description for the return message
+    let taskDescription = "";
+    let goalName = "";
+
+    for (const goal of workflow.goals) {
+      const task = goal.tasks?.find((t) => t.id === taskId);
+      if (task) {
+        taskDescription = task.description;
+        goalName = goal.name;
+        break;
+      }
+    }
+
+    if (!taskDescription) {
+      throw new Error(`Task "${taskId}" not found in any goal.`);
+    }
+
     const updatedWorkflow = workflowEditingTools.deleteTask(workflow, taskId);
     await agent!.saveCurrentWorkflow(updatedWorkflow);
 
-    return `Deleted task "${taskId}".`;
+    return `Successfully deleted task "${taskDescription}" from goal "${goalName}".`;
+  },
+
+  deleteConstraint: async ({ constraintId }: { constraintId: string }) => {
+    const { agent } = getCurrentAgent<Chat>();
+    const workflow = agent!.getCurrentWorkflow();
+
+    if (!workflow) {
+      throw new Error("No workflow loaded.");
+    }
+
+    // Find the constraint to get its description for the return message
+    let constraintDescription = "";
+    let goalName = "";
+
+    for (const goal of workflow.goals) {
+      const constraint = goal.constraints?.find((c) => c.id === constraintId);
+      if (constraint) {
+        constraintDescription = constraint.description;
+        goalName = goal.name;
+        break;
+      }
+    }
+
+    if (!constraintDescription) {
+      throw new Error(`Constraint "${constraintId}" not found in any goal.`);
+    }
+
+    const updatedWorkflow = workflowEditingTools.deleteConstraint(
+      workflow,
+      constraintId
+    );
+    await agent!.saveCurrentWorkflow(updatedWorkflow);
+
+    return `Successfully deleted constraint "${constraintDescription}" from goal "${goalName}".`;
   },
 };
