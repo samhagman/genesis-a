@@ -324,6 +324,87 @@ describe("Workflow Editing Tools (Unit Tests)", () => {
     });
   });
 
+  describe("deleteConstraint", () => {
+    it("should remove the specified constraint from workflow", () => {
+      // Add a constraint first
+      const workflowWithConstraint = workflowEditingTools.addConstraint(
+        mockWorkflow,
+        "goal-1",
+        {
+          id: "constraint-to-delete",
+          description: "Constraint to delete",
+          type: "time_limit" as const,
+          enforcement: "hard_stop" as const,
+          value: 120,
+        }
+      );
+
+      const result = workflowEditingTools.deleteConstraint(
+        workflowWithConstraint,
+        "constraint-to-delete"
+      );
+
+      expect(result.goals[0].constraints).toHaveLength(0);
+    });
+
+    it("should throw error for non-existent constraint", () => {
+      expect(() => {
+        workflowEditingTools.deleteConstraint(mockWorkflow, "non-existent-constraint");
+      }).toThrow('constraint with id "non-existent-constraint" not found in any goal');
+    });
+
+    it("should remove constraint from correct goal when multiple goals exist", () => {
+      // Add a second goal
+      let workflowWithTwoGoals = workflowEditingTools.addGoal(mockWorkflow, {
+        id: "goal-2",
+        name: "Second Goal",
+        description: "Second goal",
+        order: 2,
+        constraints: [],
+        policies: [],
+        tasks: [],
+        forms: [],
+      });
+
+      // Add constraint to first goal
+      workflowWithTwoGoals = workflowEditingTools.addConstraint(
+        workflowWithTwoGoals,
+        "goal-1",
+        {
+          id: "constraint-goal-1",
+          description: "First goal constraint",
+          type: "time_limit" as const,
+          enforcement: "warn" as const,
+        }
+      );
+
+      // Add constraint to second goal
+      workflowWithTwoGoals = workflowEditingTools.addConstraint(
+        workflowWithTwoGoals,
+        "goal-2",
+        {
+          id: "constraint-goal-2",
+          description: "Second goal constraint",
+          type: "business_rule" as const,
+          enforcement: "hard_stop" as const,
+        }
+      );
+
+      // Delete constraint from second goal
+      const result = workflowEditingTools.deleteConstraint(
+        workflowWithTwoGoals,
+        "constraint-goal-2"
+      );
+
+      // First goal constraint should remain
+      expect(result.goals[0].constraints).toHaveLength(1);
+      expect(result.goals[0].constraints[0].id).toBe("constraint-goal-1");
+      
+      // Second goal constraint should be deleted
+      expect(result.goals[1].constraints).toHaveLength(0);
+    });
+  });
+
   describe("updateGoal", () => {
     it("should update goal properties", () => {
       const updates = {

@@ -220,7 +220,6 @@ export default {
               name: "deleteTask",
               arguments: JSON.stringify({
                 taskId,
-                confirmationPhrase: "DELETE TASK",
               }),
             },
           },
