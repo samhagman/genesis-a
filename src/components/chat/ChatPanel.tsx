@@ -41,6 +41,7 @@ const toolsRequiringConfirmation: (keyof typeof tools)[] = [
   "getWeatherInformation",
   "deleteGoal",
   "deleteTask",
+  "deleteConstraint",
 ];
 
 export interface ChatPanelProps {
