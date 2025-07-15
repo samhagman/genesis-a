@@ -1,6 +1,7 @@
 import type { SelectedItemV2, WorkflowTemplateV2 } from "@/types/workflow-v2";
 import { GoalCardV2 } from "./GoalCardV2";
 import { ProgressConnector } from "./ProgressConnector";
+import { ScenarioSwitcher } from "@/components/development/ScenarioSwitcher";
 
 export interface WorkflowPanelProps {
   workflow: WorkflowTemplateV2 | null;
@@ -13,6 +14,7 @@ export interface WorkflowPanelProps {
     id: string,
     parentGoalId?: string
   ) => void;
+  viewMode?: "edit" | "instance";
 }
 
 export function WorkflowPanel({
@@ -22,6 +24,7 @@ export function WorkflowPanel({
   selectedItemId,
   selectedItemType,
   onItemSelect,
+  viewMode,
 }: WorkflowPanelProps) {
   if (workflowLoading) {
     return (
@@ -80,6 +83,13 @@ export function WorkflowPanel({
   return (
     <div className="h-full overflow-y-auto p-6" data-testid="workflow-panel">
       <div className="max-w-2xl mx-auto space-y-4">
+        {/* Scenario Switcher - only in instance mode */}
+        {viewMode === "instance" && (
+          <div className="flex justify-center mb-4">
+            <ScenarioSwitcher />
+          </div>
+        )}
+
         {/* Workflow Header */}
         <div className="text-center space-y-2 mb-8">
           <h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">

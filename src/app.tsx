@@ -19,9 +19,9 @@ import { loadWorkflowSafe } from "@/utils/workflowApi";
 
 export default function App() {
   const [theme, setTheme] = useState<"dark" | "light">(() => {
-    // Check localStorage first, default to dark if not found
+    // Check localStorage first, default to light if not found
     const savedTheme = localStorage.getItem("theme");
-    return (savedTheme as "dark" | "light") || "dark";
+    return (savedTheme as "dark" | "light") || "light";
   });
 
   // Workflow selection state
@@ -252,13 +252,6 @@ export default function App() {
 
       {/* Main content area - takes remaining space */}
       <main className="flex-1 relative overflow-y-auto">
-        {/* Development Scenario Switcher - positioned relative to main content */}
-        {viewMode === "instance" && (
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
-            <ScenarioSwitcher />
-          </div>
-        )}
-
         {/* Three panel layout fills main content area */}
         <ThreePanelLayout
           leftPanel={
@@ -280,6 +273,7 @@ export default function App() {
               selectedItemId={selectedItemId}
               selectedItemType={selectedItemType}
               onItemSelect={handleItemSelect}
+              viewMode={viewMode}
             />
           }
           rightPanel={
