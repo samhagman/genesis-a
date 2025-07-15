@@ -439,71 +439,122 @@ export class Chat extends AIChatAgent<Env> {
     }
 
     // Handle message retrieval endpoint
-    if (url.pathname.endsWith("/messages") && request.method === "GET") {
-      const templateId = url.searchParams.get("templateId");
-      if (!templateId) {
-        return new Response(JSON.stringify({ error: "templateId required" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
+    if (url.pathname.endsWith("/messages")) {
+      // Handle CORS preflight
+      if (request.method === "OPTIONS") {
+        return new Response(null, {
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+          },
         });
       }
 
-      try {
-        const messages = await this.getMessages(templateId);
-        console.log(
-          `📥 [Chat DO] Retrieved ${messages.length} messages for template ${templateId}`
-        );
-        return new Response(JSON.stringify({ messages }), {
-          headers: { "Content-Type": "application/json" },
-        });
-      } catch (error) {
-        console.error(
-          `❌ [Chat DO] Failed to get messages for ${templateId}:`,
-          error
-        );
-        return new Response(JSON.stringify({ messages: [] }), {
-          headers: { "Content-Type": "application/json" },
-        });
+      if (request.method === "GET") {
+        const templateId = url.searchParams.get("templateId");
+        if (!templateId) {
+          return new Response(JSON.stringify({ error: "templateId required" }), {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "GET, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type",
+            },
+          });
+        }
+
+        try {
+          const messages = await this.getMessages(templateId);
+          console.log(
+            `📥 [Chat DO] Retrieved ${messages.length} messages for template ${templateId}`
+          );
+          return new Response(JSON.stringify({ messages }), {
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "GET, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type",
+            },
+          });
+        } catch (error) {
+          console.error(
+            `❌ [Chat DO] Failed to get messages for ${templateId}:`,
+            error
+          );
+          return new Response(JSON.stringify({ messages: [] }), {
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "GET, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type",
+            },
+          });
+        }
       }
     }
 
     // Handle clear messages endpoint
-    if (url.pathname.endsWith("/clear") && request.method === "POST") {
-      try {
-        const body = (await request.json()) as {
-          templateId?: string;
-          clearAll?: boolean;
-        };
-        const { templateId, clearAll } = body;
+    if (url.pathname.endsWith("/clear")) {
+      // Handle CORS preflight
+      if (request.method === "OPTIONS") {
+        return new Response(null, {
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+          },
+        });
+      }
 
-        if (clearAll) {
-          // Clear all messages for all templates
-          const keys = await this.doState.storage.list({ prefix: "msg:" });
-          await Promise.all(
-            [...keys.keys()].map((key) => this.doState.storage.delete(key))
-          );
-          console.log("🧹 [Chat DO] Cleared all messages");
-        } else if (templateId) {
-          // Clear messages for specific template
-          const prefix = `msg:${templateId}:`;
-          const keys = await this.doState.storage.list({ prefix });
-          await Promise.all(
-            [...keys.keys()].map((key) => this.doState.storage.delete(key))
-          );
-          console.log(
-            `🧹 [Chat DO] Cleared messages for template ${templateId}`
-          );
+      if (request.method === "POST") {
+        try {
+          const body = (await request.json()) as {
+            templateId?: string;
+            clearAll?: boolean;
+          };
+          const { templateId, clearAll } = body;
+
+          if (clearAll) {
+            // Clear all messages for all templates
+            const keys = await this.doState.storage.list({ prefix: "msg:" });
+            await Promise.all(
+              [...keys.keys()].map((key) => this.doState.storage.delete(key))
+            );
+            console.log("🧹 [Chat DO] Cleared all messages");
+          } else if (templateId) {
+            // Clear messages for specific template
+            const prefix = `msg:${templateId}:`;
+            const keys = await this.doState.storage.list({ prefix });
+            await Promise.all(
+              [...keys.keys()].map((key) => this.doState.storage.delete(key))
+            );
+            console.log(
+              `🧹 [Chat DO] Cleared messages for template ${templateId}`
+            );
+          }
+
+          return new Response(JSON.stringify({ success: true }), {
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "POST, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type",
+            },
+          });
+        } catch (error) {
+          console.error("❌ [Chat DO] Failed to clear messages:", error);
+          return new Response(JSON.stringify({ success: false }), {
+            status: 500,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "POST, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type",
+            },
+          });
         }
-
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { "Content-Type": "application/json" },
-        });
-      } catch (error) {
-        console.error("❌ [Chat DO] Failed to clear messages:", error);
-        return new Response(JSON.stringify({ success: false }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
       }
     }
 
@@ -1988,7 +2039,15 @@ export default {
 
     return (
       // Route the request to our agent or return 404 if not found
-      (await routeAgentRequest(request, env, { cors: true })) ||
+      (await routeAgentRequest(request, env, {
+        cors: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, HEAD, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type",
+          "Access-Control-Allow-Credentials": "true",
+          "Access-Control-Max-Age": "86400",
+        }
+      })) ||
       new Response("Not found", { status: 404 })
     );
   },
