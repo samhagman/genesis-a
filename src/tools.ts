@@ -9,7 +9,13 @@ import { getCurrentAgent } from "agents";
 import { unstable_scheduleSchema } from "agents/schedule";
 import { workflowEditingTools } from "./agents/workflowEditingTools";
 import type { Chat } from "./server";
-import type { WorkflowTemplateV2, Task } from "./types/workflow-v2";
+import type {
+  WorkflowTemplateV2,
+  Task,
+  Goal,
+  Policy,
+  Constraint,
+} from "./types/workflow-v2";
 
 /**
  * Weather information tool that requires human confirmation
@@ -219,6 +225,16 @@ ${
         `     ${constraintIndex + 1}. ${constraint.description} (ID: ${constraint.id})`
     )
     .join("\n") || "     No constraints"
+}
+     
+     **Policies in this goal:**
+${
+  g.policies
+    ?.map(
+      (policy, policyIndex) =>
+        `     ${policyIndex + 1}. ${policy.name} (ID: ${policy.id})`
+    )
+    .join("\n") || "     No policies"
 }`
   )
   .join("\n\n")}
@@ -467,6 +483,36 @@ const deleteConstraint = tool({
 });
 
 /**
+ * Add a policy to a specific goal in the workflow (requires confirmation)
+ */
+const addPolicy = tool({
+  description:
+    "Add a policy to a specific goal in the workflow. Policies define automated actions based on conditions. This action requires your approval.",
+  parameters: z.object({
+    goalId: z.string().describe("ID of the goal to add the policy to"),
+    name: z.string().describe("Name of the policy"),
+    condition: z
+      .object({
+        field: z
+          .string()
+          .describe("Field to check (e.g., 'employee.work_arrangement')"),
+        operator: z.string().describe("Operator (e.g., '==', '!=', '>', '<')"),
+        value: z.unknown().describe("Value to compare against"),
+      })
+      .describe("Condition that triggers the policy"),
+    action: z
+      .object({
+        action: z
+          .string()
+          .describe("Action to take (e.g., 'create_task', 'notify', 'block')"),
+        params: z.record(z.unknown()).describe("Parameters for the action"),
+      })
+      .describe("Action to execute when condition is met"),
+  }),
+  // No execute function - requires human confirmation
+});
+
+/**
  * Edit an existing task within a goal. Supports partial updates.
  */
 const editTask = tool({
@@ -552,6 +598,367 @@ const editTask = tool({
 });
 
 /**
+ * Edit an existing goal in the workflow. Supports partial updates.
+ */
+const editGoal = tool({
+  description:
+    "Edit an existing goal in the workflow. Supports partial updates.",
+  parameters: z.object({
+    goalId: z.string().describe("ID of the goal to edit"),
+    updates: z
+      .object({
+        name: z.string().optional().describe("New goal name"),
+        description: z.string().optional().describe("New goal description"),
+        order: z
+          .number()
+          .positive()
+          .optional()
+          .describe("Goal execution order"),
+        timeoutMinutes: z
+          .number()
+          .positive()
+          .optional()
+          .describe("Goal timeout in minutes"),
+        activationCondition: z
+          .string()
+          .optional()
+          .describe("Condition for goal activation"),
+        continuous: z
+          .boolean()
+          .optional()
+          .describe("Whether goal runs continuously"),
+        stopCondition: z
+          .string()
+          .optional()
+          .describe("Condition to stop the goal"),
+        trigger: z.string().optional().describe("Goal trigger condition"),
+        successCriteria: z
+          .object({
+            outputs_required: z
+              .array(z.string())
+              .describe("Required outputs for success"),
+          })
+          .optional()
+          .describe("Criteria for goal success"),
+      })
+      .describe("Fields to update (unspecified fields remain unchanged)"),
+  }),
+  execute: async ({ goalId, updates }) => {
+    const { agent } = getCurrentAgent<Chat>();
+    const workflow = agent!.getCurrentWorkflow();
+
+    if (!workflow) {
+      throw new Error("No workflow loaded.");
+    }
+
+    // Find goal
+    const goal = workflow.goals.find((g) => g.id === goalId);
+    if (!goal) {
+      const availableGoals = workflow.goals
+        .map((g) => `${g.id} (${g.name})`)
+        .join(", ");
+      throw new Error(
+        `Goal "${goalId}" not found. Available goals: ${availableGoals}`
+      );
+    }
+
+    // Process updates with field name mapping
+    const processedUpdates: Partial<Goal> = {};
+
+    // Direct field mappings
+    if (updates.name !== undefined) {
+      processedUpdates.name = updates.name;
+    }
+    if (updates.description !== undefined) {
+      processedUpdates.description = updates.description;
+    }
+    if (updates.order !== undefined) {
+      processedUpdates.order = updates.order;
+    }
+    if (updates.continuous !== undefined) {
+      processedUpdates.continuous = updates.continuous;
+    }
+    if (updates.trigger !== undefined) {
+      processedUpdates.trigger = updates.trigger;
+    }
+
+    // Field name mappings (camelCase to snake_case)
+    if (updates.timeoutMinutes !== undefined) {
+      processedUpdates.timeout_minutes = updates.timeoutMinutes;
+    }
+    if (updates.activationCondition !== undefined) {
+      processedUpdates.activation_condition = updates.activationCondition;
+    }
+    if (updates.stopCondition !== undefined) {
+      processedUpdates.stop_condition = updates.stopCondition;
+    }
+    if (updates.successCriteria !== undefined) {
+      processedUpdates.success_criteria = updates.successCriteria;
+    }
+
+    const updatedWorkflow = workflowEditingTools.updateGoal(
+      workflow,
+      goalId,
+      processedUpdates
+    );
+
+    await agent!.saveCurrentWorkflow(updatedWorkflow);
+
+    return `Updated goal "${goal.name}".`;
+  },
+});
+
+/**
+ * Edit an existing policy in the workflow. Supports partial updates.
+ */
+const editPolicy = tool({
+  description:
+    "Edit an existing policy in the workflow. Supports partial updates.",
+  parameters: z.object({
+    policyId: z.string().describe("ID of the policy to edit"),
+    updates: z
+      .object({
+        name: z.string().optional().describe("New policy name"),
+        condition: z
+          .object({
+            field: z
+              .string()
+              .optional()
+              .describe("Field to check (e.g., 'employee.work_arrangement')"),
+            operator: z
+              .string()
+              .optional()
+              .describe("Operator (e.g., '==', '!=', '>', '<')"),
+            value: z.unknown().optional().describe("Value to compare against"),
+            type: z.string().optional().describe("Condition type"),
+            condition: z.string().optional().describe("Condition expression"),
+          })
+          .optional()
+          .describe("Updated condition that triggers the policy"),
+        action: z
+          .object({
+            action: z
+              .string()
+              .optional()
+              .describe(
+                "Action to take (e.g., 'create_task', 'notify', 'block')"
+              ),
+            params: z
+              .record(z.unknown())
+              .optional()
+              .describe("Parameters for the action"),
+          })
+          .optional()
+          .describe("Updated action to execute when condition is met"),
+      })
+      .describe("Fields to update (unspecified fields remain unchanged)"),
+  }),
+  execute: async ({ policyId, updates }) => {
+    const { agent } = getCurrentAgent<Chat>();
+    const workflow = agent!.getCurrentWorkflow();
+
+    if (!workflow) {
+      throw new Error("No workflow loaded.");
+    }
+
+    // Find policy and its goal
+    let foundPolicy = null;
+    let foundGoal = null;
+
+    for (const goal of workflow.goals) {
+      const policy = goal.policies?.find((p) => p.id === policyId);
+      if (policy) {
+        foundPolicy = policy;
+        foundGoal = goal;
+        break;
+      }
+    }
+
+    if (!foundPolicy || !foundGoal) {
+      throw new Error(`Policy "${policyId}" not found in any goal.`);
+    }
+
+    // Process updates with field mapping
+    const processedUpdates: Partial<Policy> = {};
+
+    // Direct field mapping for name
+    if (updates.name !== undefined) {
+      processedUpdates.name = updates.name;
+    }
+
+    // Handle condition updates (maps to 'if' field)
+    if (updates.condition !== undefined) {
+      processedUpdates.if = {
+        ...foundPolicy.if,
+        ...updates.condition,
+      };
+    }
+
+    // Handle action updates (maps to 'then' field)
+    if (updates.action !== undefined) {
+      processedUpdates.then = {
+        ...foundPolicy.then,
+        ...updates.action,
+      };
+    }
+
+    const updatedWorkflow = workflowEditingTools.updatePolicy(
+      workflow,
+      policyId,
+      processedUpdates
+    );
+
+    await agent!.saveCurrentWorkflow(updatedWorkflow);
+
+    return `Updated policy "${foundPolicy.name}" in goal "${foundGoal.name}".`;
+  },
+});
+
+/**
+ * Edit an existing constraint in the workflow. Supports partial updates.
+ */
+const editConstraint = tool({
+  description:
+    "Edit an existing constraint in the workflow. Supports partial updates.",
+  parameters: z.object({
+    constraintId: z.string().describe("ID of the constraint to edit"),
+    updates: z
+      .object({
+        description: z
+          .string()
+          .optional()
+          .describe("New constraint description"),
+        type: z
+          .enum([
+            "time_limit",
+            "data_validation",
+            "business_rule",
+            "rate_limit",
+            "access_control",
+            "timing",
+            "change_management",
+            "data_protection",
+            "privacy",
+            "content_validation",
+          ])
+          .optional()
+          .describe("Type of constraint"),
+        enforcement: z
+          .enum([
+            "hard_stop",
+            "block_progression",
+            "require_approval",
+            "warn",
+            "skip_workflow",
+            "delay_until_allowed",
+            "filter_recipients",
+            "content_review",
+            "block_until_met",
+            "block_duplicate",
+          ])
+          .optional()
+          .describe("How strictly to enforce this constraint"),
+        value: z
+          .any()
+          .optional()
+          .describe(
+            "Constraint value (e.g., time limit in minutes, validation rules)"
+          ),
+        unit: z.string().optional().describe("Unit for the constraint value"),
+        condition: z.string().optional().describe("Condition expression"),
+        requiredFields: z
+          .array(z.string())
+          .optional()
+          .describe("Required fields for validation"),
+        scope: z.string().optional().describe("Scope of the constraint"),
+        limit: z.number().optional().describe("Numeric limit value"),
+        maxValue: z.string().optional().describe("Maximum allowed value"),
+        check: z.string().optional().describe("Validation check expression"),
+        rule: z.string().optional().describe("Business rule expression"),
+      })
+      .describe("Fields to update (unspecified fields remain unchanged)"),
+  }),
+  execute: async ({ constraintId, updates }) => {
+    const { agent } = getCurrentAgent<Chat>();
+    const workflow = agent!.getCurrentWorkflow();
+
+    if (!workflow) {
+      throw new Error("No workflow loaded.");
+    }
+
+    // Find constraint and its goal
+    let foundConstraint = null;
+    let foundGoal = null;
+
+    for (const goal of workflow.goals) {
+      const constraint = goal.constraints?.find((c) => c.id === constraintId);
+      if (constraint) {
+        foundConstraint = constraint;
+        foundGoal = goal;
+        break;
+      }
+    }
+
+    if (!foundConstraint || !foundGoal) {
+      throw new Error(`Constraint "${constraintId}" not found in any goal.`);
+    }
+
+    // Process updates with field name mapping
+    const processedUpdates: Partial<Constraint> = {};
+
+    // Direct field mappings
+    if (updates.description !== undefined) {
+      processedUpdates.description = updates.description;
+    }
+    if (updates.type !== undefined) {
+      processedUpdates.type = updates.type;
+    }
+    if (updates.enforcement !== undefined) {
+      processedUpdates.enforcement = updates.enforcement;
+    }
+    if (updates.value !== undefined) {
+      processedUpdates.value = updates.value;
+    }
+    if (updates.unit !== undefined) {
+      processedUpdates.unit = updates.unit;
+    }
+    if (updates.condition !== undefined) {
+      processedUpdates.condition = updates.condition;
+    }
+    if (updates.scope !== undefined) {
+      processedUpdates.scope = updates.scope;
+    }
+    if (updates.limit !== undefined) {
+      processedUpdates.limit = updates.limit;
+    }
+    if (updates.check !== undefined) {
+      processedUpdates.check = updates.check;
+    }
+    if (updates.rule !== undefined) {
+      processedUpdates.rule = updates.rule;
+    }
+
+    // Field name mappings (camelCase to snake_case)
+    if (updates.requiredFields !== undefined) {
+      processedUpdates.required_fields = updates.requiredFields;
+    }
+    if (updates.maxValue !== undefined) {
+      processedUpdates.max_value = updates.maxValue;
+    }
+
+    const updatedWorkflow = workflowEditingTools.updateConstraint(
+      workflow,
+      constraintId,
+      processedUpdates
+    );
+
+    await agent!.saveCurrentWorkflow(updatedWorkflow);
+
+    return `Updated constraint "${foundConstraint.description}" in goal "${foundGoal.name}".`;
+  },
+});
+
+/**
  * Export all available tools
  * These will be provided to the AI model to describe available capabilities
  */
@@ -572,7 +979,11 @@ export const tools = {
   deleteGoal,
   deleteTask,
   deleteConstraint,
+  addPolicy,
   editTask,
+  editGoal,
+  editPolicy,
+  editConstraint,
 };
 
 /**
@@ -682,5 +1093,64 @@ export const executions = {
     await agent!.saveCurrentWorkflow(updatedWorkflow);
 
     return `Successfully deleted constraint "${constraintDescription}" from goal "${goalName}".`;
+  },
+
+  addPolicy: async ({
+    goalId,
+    name,
+    condition,
+    action,
+  }: {
+    goalId: string;
+    name: string;
+    condition: {
+      field: string;
+      operator: string;
+      value?: unknown;
+    };
+    action: {
+      action: string;
+      params: Record<string, unknown>;
+    };
+  }) => {
+    const { agent } = getCurrentAgent<Chat>();
+    const workflow = agent!.getCurrentWorkflow();
+    if (!workflow) {
+      throw new Error("No workflow loaded.");
+    }
+
+    const goal = workflow.goals.find((g) => g.id === goalId);
+    if (!goal) {
+      throw new Error(`Goal "${goalId}" not found.`);
+    }
+
+    // Create the policy using workflowEditingTools
+    const policy = {
+      id: `pol_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      name,
+      if: {
+        field: condition.field,
+        operator: condition.operator,
+        value: condition.value,
+      },
+      then: {
+        action: action.action,
+        params: action.params,
+      },
+    };
+
+    const updatedWorkflow = workflowEditingTools.addPolicy(
+      workflow,
+      goalId,
+      policy
+    );
+
+    await agent!.saveCurrentWorkflow(updatedWorkflow);
+
+    // Find the newly added policy
+    const updatedGoal = updatedWorkflow.goals.find((g) => g.id === goalId);
+    const newPolicy = updatedGoal?.policies[updatedGoal.policies.length - 1];
+
+    return `Added policy "${name}" to goal "${goal.name}" (Policy ID: ${newPolicy?.id || "generated"}). The policy will trigger when ${condition.field} ${condition.operator} ${JSON.stringify(condition.value)}.`;
   },
 };

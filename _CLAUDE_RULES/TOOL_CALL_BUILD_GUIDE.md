@@ -231,7 +231,7 @@ Example: For deleteTask, the AI needed actual task IDs, so we updated viewCurren
 
 ```typescript
 // BAD: AI can't see task IDs
-`Tasks: ${g.tasks?.length || 0}`// GOOD: AI can see and use task IDs
+`Tasks: ${g.tasks?.length || 0}` // GOOD: AI can see and use task IDs
 `${g.tasks
   ?.map((task, i) => `${i + 1}. ${task.description} (ID: ${task.id})`)
   .join("\n")}`;

@@ -349,8 +349,13 @@ describe("Workflow Editing Tools (Unit Tests)", () => {
 
     it("should throw error for non-existent constraint", () => {
       expect(() => {
-        workflowEditingTools.deleteConstraint(mockWorkflow, "non-existent-constraint");
-      }).toThrow('constraint with id "non-existent-constraint" not found in any goal');
+        workflowEditingTools.deleteConstraint(
+          mockWorkflow,
+          "non-existent-constraint"
+        );
+      }).toThrow(
+        'constraint with id "non-existent-constraint" not found in any goal'
+      );
     });
 
     it("should remove constraint from correct goal when multiple goals exist", () => {
@@ -399,7 +404,7 @@ describe("Workflow Editing Tools (Unit Tests)", () => {
       // First goal constraint should remain
       expect(result.goals[0].constraints).toHaveLength(1);
       expect(result.goals[0].constraints[0].id).toBe("constraint-goal-1");
-      
+
       // Second goal constraint should be deleted
       expect(result.goals[1].constraints).toHaveLength(0);
     });
