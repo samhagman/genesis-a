@@ -11,7 +11,7 @@
     "dev:status": "pm2 status",
     "dev:clean": "pm2 kill && pkill -f 'vite|wrangler' || true",
     "dev:frontend": "vite dev --port 5175",
-    "dev:backend": "wrangler dev --local --port 8787",
+    "dev:backend": "wrangler d/cev --local --port 8787",
     "dev:backend:remote": "wrangler dev --remote --port 8787",
     "dev:backend:mock-ai": "wrangler dev --local --binding AI=mock-ai --port 8787",
     "test": "vitest",

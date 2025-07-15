@@ -144,3 +144,4 @@ dist
 
 # Misc
 .idea
+.mcp.json
