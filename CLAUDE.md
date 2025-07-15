@@ -243,3 +243,7 @@ You HAVE TO use write tool to generate the html file, do NOT just output XML typ
 ## Debugging
 
 - Don't tail a command without using timeout, to avoid getting stuck
+
+## Localhost Settings
+
+- The localhost is http://localhost:5175/
